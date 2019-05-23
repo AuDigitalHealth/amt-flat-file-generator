@@ -33,6 +33,7 @@ usage: Amt2FlatFile
 ```
 
 The command line parameters are explained in the table below
+
 Switch | Short alias | Parameter | Optional | Default | Description
 ------ | ----------- | --------- | -------- | ------- | -----------
 -i | --inputFile | Path to AMT RF2 zip file | No | N/A | Specifies the location of the input RF2 zip file containing AMT, note it must contain a Snapshot RF2 release, not a Full or Delta release
