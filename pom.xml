@@ -1,0 +1,150 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>au.gov.digitalhealth.terminology</groupId>
+	<artifactId>amt-to-flat-file</artifactId>
+
+	<version>master-SNAPSHOT</version>
+	<name>AMT flat file generator</name>
+	<description>Generates an "AMT Flat File" from a Snapshot SNOMED CT-AU release</description>
+
+	<packaging>maven-plugin</packaging>
+
+	<scm>
+		<connection>scm:git:https://github.com/AuDigitalHealth/amt-flat-file-generator.git</connection>
+		<developerConnection>scm:git:https://github.com/AuDigitalHealth/amt-flat-file-generator.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/AuDigitalHealth/amt-flat-file-generator.git</url>
+	</scm>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.openmbee.junit</groupId>
+			<artifactId>junit-xml-parser</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.maven</groupId>
+			<artifactId>maven-plugin-api</artifactId>
+			<version>3.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.maven.plugin-tools</groupId>
+			<artifactId>maven-plugin-annotations</artifactId>
+			<version>3.4</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.jgrapht</groupId>
+			<artifactId>jgrapht-core</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-cli</groupId>
+			<artifactId>commons-cli</artifactId>
+			<version>1.4</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.5</version>
+		</dependency>
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>6.9.8</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.maven.wagon</groupId>
+			<artifactId>wagon-http</artifactId>
+			<version>3.2.0</version>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+
+
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.7.0</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>versions-maven-plugin</artifactId>
+				<version>2.1</version>
+			</plugin>
+			<plugin>
+				<artifactId>maven-scm-plugin</artifactId>
+				<version>1.8.1</version>
+				<configuration>
+					<tag>${project.artifactId}-${project.version}</tag>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-plugin-plugin</artifactId>
+				<version>3.3</version>
+				<configuration>
+					<goalPrefix>amt-to-flat-file</goalPrefix>
+					<skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>
+				</configuration>
+				<executions>
+					<execution>
+						<id>mojo-descriptor</id>
+						<goals>
+							<goal>descriptor</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>help-goal</id>
+						<goals>
+							<goal>helpmojo</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>au.gov.digitalhealth.terminology.amtflatfile.Amt2FlatFile</mainClass>
+						</manifest>
+					</archive>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id> <!-- this is used for inheritance merges -->
+						<phase>package</phase> <!-- bind to the packaging phase -->
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.amashchenko.maven.plugin</groupId>
+				<artifactId>gitflow-maven-plugin</artifactId>
+				<version>1.6.0</version>
+				<configuration>
+					<gitFlowConfig>
+						<developmentBranch>master</developmentBranch>
+					</gitFlowConfig>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
