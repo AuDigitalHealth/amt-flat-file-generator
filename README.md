@@ -30,7 +30,7 @@ usage: Amt2FlatFile
                                                 junit result file
  -o,--outputFile <OUTPUT_FILE>                  Output file path to write out the
                                                 flat file
- -r,--replacementsOutputFile <REPLACEMENT_FILE> Putput path to write out the replacement
+ -r,--replacementsOutputFile <REPLACEMENT_FILE> Output path to write out the replacement
                                                 file for inactive concepts.
 ```
 
