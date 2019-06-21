@@ -25,6 +25,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -46,10 +47,12 @@ public class Amt2FlatFile extends AbstractMojo {
 
 	private static final String EXIT_ON_ERROR_OPTION = "e";
 
+    private static final String REPLACEMENT_FILE_PATH = "r";
+
 	private static final String JUNIT_FILE_PATH = "j";
 
 	private static final Logger logger = Logger.getLogger(Amt2FlatFile.class.getCanonicalName());
-	
+
 	private JUnitTestSuite_EXT testSuite;
 
 	@Parameter(property = "inputZipFilePath", required = true)
@@ -57,6 +60,9 @@ public class Amt2FlatFile extends AbstractMojo {
 
 	@Parameter(property = "outputFilePath", required = true)
 	private String outputFilePath;
+
+    @Parameter(property = "replacementsOutputFilePath", required = false)
+    private String replacementsOutputFilePath;
 
 	@Parameter(property = "junitFilePath", required = false, defaultValue = "target/ValidationErrors.xml")
 	private String junitFilePath;
@@ -70,30 +76,35 @@ public class Amt2FlatFile extends AbstractMojo {
 		long start = System.currentTimeMillis();
 		Options options = new Options();
 
-		options.addOption(Option.builder(INPUT_FILE_OPTION)
-				.longOpt("inputFile")
-				.argName("AMT_ZIP_FILE_PATH")
-				.hasArg()
-				.desc("Input AMT release ZIP file")
-				.required(true)
-				.build());
-		options.addOption(Option.builder(OUTPUT_FILE_OPTION)
-				.longOpt("outputFile")
-				.argName("OUTPUT_FILE")
-				.hasArg()
-				.desc("Output file path to write out the flat file")
-				.required()
-				.build());
-		options.addOption(Option.builder(EXIT_ON_ERROR_OPTION)
-				.longOpt("exit-on-error")
-				.argName("EXIT_ON_ERROR")
-				.desc("Flag dictating whether the program will exit on an error or keep processing")
-				.build());
-		options.addOption(Option.builder(JUNIT_FILE_PATH)
-				.longOpt("junitFile")
-				.argName("JUNIT_FILE")
-				.desc("Output file path to write out the junit result file")
-				.build());
+        options.addOption(Option.builder(INPUT_FILE_OPTION)
+            .longOpt("inputFile")
+            .argName("AMT_ZIP_FILE_PATH")
+            .hasArg()
+            .desc("Input AMT release ZIP file")
+            .required(true)
+            .build());
+        options.addOption(Option.builder(OUTPUT_FILE_OPTION)
+            .longOpt("outputFile")
+            .argName("OUTPUT_FILE")
+            .hasArg()
+            .desc("Output file path to write out the flat file")
+            .required()
+            .build());
+        options.addOption(Option.builder(EXIT_ON_ERROR_OPTION)
+            .longOpt("exit-on-error")
+            .argName("EXIT_ON_ERROR")
+            .desc("Flag dictating whether the program will exit on an error or keep processing")
+            .build());
+        options.addOption(Option.builder(JUNIT_FILE_PATH)
+            .longOpt("junitFile")
+            .argName("JUNIT_FILE")
+            .desc("Output file path to write out the junit result file")
+            .build());
+        options.addOption(Option.builder(REPLACEMENT_FILE_PATH)
+            .longOpt("replacementsOutputFile")
+            .argName("REPLACEMENTS_FILE_PATH")
+            .desc("Output file path to write out the file listing inactive AMT concepts and their replacement active concepts")
+            .build());
 
 		CommandLineParser parser = new DefaultParser();
 		try {
@@ -103,7 +114,8 @@ public class Amt2FlatFile extends AbstractMojo {
 			amt2FlatFile.setInputZipFilePath(line.getOptionValue(INPUT_FILE_OPTION));
 			amt2FlatFile.setOutputFilePath(line.getOptionValue(OUTPUT_FILE_OPTION));
 			amt2FlatFile.setExitOnError(line.hasOption(EXIT_ON_ERROR_OPTION));
-			amt2FlatFile.setJunitFilePath(line.getOptionValue(JUNIT_FILE_PATH));
+            amt2FlatFile.setJunitFilePath(line.getOptionValue(JUNIT_FILE_PATH));
+            amt2FlatFile.setReplacementsFilePath(line.getOptionValue(REPLACEMENT_FILE_PATH));
 			amt2FlatFile.execute();
 
 		} catch (ParseException exp) {
@@ -117,7 +129,7 @@ public class Amt2FlatFile extends AbstractMojo {
 		logger.info("Done in " + (System.currentTimeMillis() - start) + " milliseconds");
 	}
 
-	@Override
+    @Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
 		
 		//initialise test suite	
@@ -128,7 +140,10 @@ public class Amt2FlatFile extends AbstractMojo {
 							"jar:file:" + FileSystems.getDefault().getPath(inputZipFilePath).toAbsolutePath().toString()),
 					new HashMap<>());
 			conceptCache = new AmtCache(zipFileSystem, this.testSuite, exitOnError);
-			writeFlatFile(FileSystems.getDefault().getPath(outputFilePath));
+            writeFlatFile(FileSystems.getDefault().getPath(outputFilePath));
+            if (replacementsOutputFilePath != null && !replacementsOutputFilePath.isEmpty()) {
+                writeReplacementsFile(FileSystems.getDefault().getPath(replacementsOutputFilePath));
+            }
 			if (junitFilePath == null || junitFilePath.trim().isEmpty()) {
 				junitFilePath = "target/ValidationErrors.xml";
 			}
@@ -147,7 +162,7 @@ public class Amt2FlatFile extends AbstractMojo {
 		}
 	}
 
-	private void writeFlatFile(Path path) throws IOException   {
+    private void writeFlatFile(Path path) throws IOException {
         if (path.getParent() != null && !Files.exists(path.getParent())) {
             Files.createDirectory(path.getParent());
         }
@@ -155,7 +170,11 @@ public class Amt2FlatFile extends AbstractMojo {
                 BufferedWriter writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
 
-            writeCsvHeader(writer);
+            writer.write(
+                String.join(",", "CTPP SCTID", "CTPP PT", "ARTG_ID", "TPP SCTID", "TPP PT", "TPUU SCTID", "TPUU PT",
+                    "TPP TP SCTID", "TPP TP PT", "TPUU TP SCTID", "TPUU TP PT", "MPP SCTID", "MPP PT", "MPUU SCTID",
+                    "MPUU PT", "MP SCTID", "MP PT"));
+            writer.newLine();
 
             for (Concept ctpp : conceptCache.getCtpps().values()) {
                 Concept tpp = getParent(AmtConcept.TPP, AmtConcept.CTPP, ctpp);
@@ -230,18 +249,32 @@ public class Amt2FlatFile extends AbstractMojo {
                 }
             }
         }
-		
-		
 	}
 
 
-	private void writeCsvHeader(BufferedWriter writer) throws IOException {
-		writer.write(
-				String.join(",", "CTPP SCTID", "CTPP PT", "ARTG_ID", "TPP SCTID", "TPP PT", "TPUU SCTID", "TPUU PT",
-						"TPP TP SCTID", "TPP TP PT", "TPUU TP SCTID", "TPUU TP PT", "MPP SCTID", "MPP PT", "MPUU SCTID",
-						"MPUU PT", "MP SCTID", "MP PT"));
-		writer.newLine();
-	}
+    private void writeReplacementsFile(Path path) throws IOException {
+        if (path.getParent() != null && !Files.exists(path.getParent())) {
+            Files.createDirectory(path.getParent());
+        }
+        try (
+                BufferedWriter writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+
+            writer.write(
+                String.join(",", "INACTIVE SCTID", "INACTIVE PT", "REPLACEMENT TYPE SCTID", "REPLACEMENT TYPE PT", "REPLACEMENT SCTID",
+                    "REPLACEMENT PT"));
+            writer.newLine();
+            for (Triple<Concept, Concept, Concept> entry : conceptCache.getReplacementConcepts()) {
+                writer.write(
+                    String.join(",",
+                        entry.getLeft().getId() + "", "\"" + entry.getLeft().getPreferredTerm() + "\"",
+                        entry.getMiddle().getId() + "", "\"" + entry.getMiddle().getPreferredTerm() + "\"",
+                        entry.getRight().getId() + "", "\"" + entry.getRight().getPreferredTerm() + "\""));
+                writer.newLine();
+            }
+        }
+    }
+
 
 	private Concept getParent(AmtConcept parentType, AmtConcept current, Concept concept) {
 		Set<Concept> parents = getParents(parentType, current, concept).stream()
@@ -304,7 +337,11 @@ public class Amt2FlatFile extends AbstractMojo {
 		exitOnError = exitOnError_param;
 	}
 
-	private void setJunitFilePath(String path) {
+    public void setJunitFilePath(String path) {
 		junitFilePath = path;
 	}
+
+    public void setReplacementsFilePath(String path) {
+        replacementsOutputFilePath = path;
+    }
 }

@@ -7,7 +7,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 
 class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
-    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile;
+    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile, historicalAssociationRefsetFile;
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attr) {
@@ -23,6 +23,8 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
                 languageRefsetFile = file;
             } else if (fileName.startsWith("der2_iRefset_ARTGIdSnapshot_AU1000036")) {
                 artgIdRefsetFile = file;
+            } else if (fileName.startsWith("der2_cRefset_AssociationReferenceSnapshot_AU1000036")) {
+                historicalAssociationRefsetFile = file;
             }
         }
         return FileVisitResult.CONTINUE;
@@ -46,6 +48,10 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
     public Path getArtgIdRefsetFile() {
         return artgIdRefsetFile;
+    }
+
+    public Path getHistoricalAssociationRefsetFile() {
+        return historicalAssociationRefsetFile;
     }
 
 }
