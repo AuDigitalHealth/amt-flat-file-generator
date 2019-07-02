@@ -4,10 +4,13 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.List;
 
 class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
-    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile, historicalAssociationRefsetFile;
+    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile;
+    private List<Path> historicalAssociationRefsetFiles = new ArrayList<>();
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attr) {
@@ -24,7 +27,21 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
             } else if (fileName.startsWith("der2_iRefset_ARTGIdSnapshot_AU1000036")) {
                 artgIdRefsetFile = file;
             } else if (fileName.startsWith("der2_cRefset_AssociationReferenceSnapshot_AU1000036")) {
-                historicalAssociationRefsetFile = file;
+                historicalAssociationRefsetFiles.add(file);
+            } else if (fileName.startsWith("der2_cRefset_AlternativeAssociationSnapshot_AU1000036")) {
+                historicalAssociationRefsetFiles.add(file);
+            } else if (fileName.startsWith("der2_cRefset_MovedFromAssociationReferenceSnapshot_AU1000036")) {
+                historicalAssociationRefsetFiles.add(file);
+            } else if (fileName.startsWith("der2_cRefset_MovedToAssociationReferenceSnapshot_AU1000036")) {
+                historicalAssociationRefsetFiles.add(file);
+            } else if (fileName.startsWith("der2_cRefset_PossiblyEquivalentToAssociationSnapshot_AU1000036")) {
+                historicalAssociationRefsetFiles.add(file);
+            } else if (fileName.startsWith("der2_cRefset_ReplacedByAssociationSnapshot_AU1000036")) {
+                historicalAssociationRefsetFiles.add(file);
+            } else if (fileName.startsWith("der2_cRefset_SameAsAssociationSnapshot_AU1000036")) {
+                historicalAssociationRefsetFiles.add(file);
+            } else if (fileName.startsWith("der2_cRefset_WasAAssociationSnapshot_AU1000036")) {
+                historicalAssociationRefsetFiles.add(file);
             }
         }
         return FileVisitResult.CONTINUE;
@@ -50,8 +67,8 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
         return artgIdRefsetFile;
     }
 
-    public Path getHistoricalAssociationRefsetFile() {
-        return historicalAssociationRefsetFile;
+    public List<Path> getHistoricalAssociationRefsetFiles() {
+        return historicalAssociationRefsetFiles;
     }
 
 }
