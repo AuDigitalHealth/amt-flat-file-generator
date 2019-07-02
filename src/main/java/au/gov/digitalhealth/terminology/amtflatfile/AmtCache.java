@@ -67,7 +67,9 @@ public class AmtCache {
         readFile(visitor.getLanguageRefsetFile(), s -> handleLanguageRefsetRow(s), true, "\t");
         readFile(visitor.getDescriptionFile(), s -> handleDescriptionRow(s), true, "\t");
         readFile(visitor.getArtgIdRefsetFile(), s -> handleArtgIdRefsetRow(s), true, "\t");
-        readFile(visitor.getHistoricalAssociationRefsetFile(), s -> handleHistoricalAssociationRefsetRow(s), true, "\t");
+        for (Path historicalFile : visitor.getHistoricalAssociationRefsetFiles()) {
+            readFile(historicalFile, s -> handleHistoricalAssociationRefsetRow(s), true, "\t");
+        }
 
         try {
             calculateTransitiveClosure();
