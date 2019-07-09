@@ -23,7 +23,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 public class Amt2FlatFileTest {
-	
+
 	private String testResDirectory = "src/test/resources/";
 	private String inFile = testResDirectory + "NCTS_SCT_RF2_DISTRIBUTION_32506021000036107-20180430-SNAPSHOT.zip";
     private String outFile = "target/test-out/out.csv";
@@ -42,7 +42,7 @@ public class Amt2FlatFileTest {
 	
 	@Test(groups="files", priority = 1, description = "Tests that the JUnit file gets generated")
 	public void JUnitGenerated() throws MojoExecutionException, MojoFailureException, IOException {
-		Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
+	    Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
         amt2FlatFile.setInputZipFilePath("target/test-classes/rf2-fails-flat-file-generation-1.0.zip");
         amt2FlatFile.setOutputFilePath(outFile);
 		amt2FlatFile.execute();
@@ -55,13 +55,14 @@ public class Amt2FlatFileTest {
 		Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
 		amt2FlatFile.setInputZipFilePath("target/test-classes/rf2-fails-flat-file-generation-1.0.zip");
 		amt2FlatFile.setOutputFilePath(outFile);
+        amt2FlatFile.setJunitFilePath("target/JUnitContainsCorrectErrors.xml");
 		amt2FlatFile.execute();
-		File validXml = new File("target/ValidationErrors.xml");
+        File validXml = new File("target/JUnitContainsCorrectErrors.xml");
 		JUnitTestSuite info = JUnitMarshalling.unmarshalTestSuite(new FileInputStream(validXml));
 		List<String> failures = info.getTestCases().stream().flatMap(aCase -> aCase.getFailures().stream().map(fail -> fail.getValue())).collect(Collectors.toList());
 		Assert.assertTrue(failures.stream().anyMatch(fail -> fail.contains("1212261000168108")));
 		Assert.assertTrue(failures.stream().anyMatch(fail -> fail.contains("1209811000168100")));
-        Assert.assertEquals(failures.size(), 8);
+        Assert.assertEquals(failures.size(), 10);
 	}
 	
 	
@@ -73,12 +74,11 @@ public class Amt2FlatFileTest {
 		amt2FlatFile.setOutputFilePath(outFile);
 		amt2FlatFile.execute();
 
-
 	}
 	
 	@Test(groups="files", priority = 1, description = "An exception is thrown when the provided input zip file is missing critical files", expectedExceptions=NullPointerException.class)
 	public void fileMissingFromReleaseExceptionThrown() throws MojoExecutionException, MojoFailureException, IOException {
-		  
+
 		Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
 		amt2FlatFile.setInputZipFilePath(testResDirectory + "incomplete.zip");
 		amt2FlatFile.setOutputFilePath(outFile);

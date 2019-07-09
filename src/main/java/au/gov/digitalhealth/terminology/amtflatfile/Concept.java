@@ -13,14 +13,16 @@ public class Concept {
     private long id;
     private String fullSpecifiedName;
     private String preferredTerm;
-    private Set<Concept> units;
+    private Set<Concept> units = new HashSet<>();
     private Map<Long, Concept> parents = new HashMap<>();
     private Map<Long, Concept> ancestors = new HashMap<>();
-    private Set<Concept> tps;
-    private Set<String> artgIds;
+    private Set<Concept> tps = new HashSet<>();
+    private Set<String> artgIds = new HashSet<>();
+    private boolean active;
 
-    public Concept(long id) {
+    public Concept(long id, boolean active) {
         this.id = id;
+        this.active = active;
     }
 
     public void addParent(Concept concept) {
@@ -157,5 +159,9 @@ public class Concept {
 
     public Set<String> getArtgIds() {
         return artgIds;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }
