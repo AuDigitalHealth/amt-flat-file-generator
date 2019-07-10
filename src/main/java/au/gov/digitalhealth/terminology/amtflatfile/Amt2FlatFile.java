@@ -31,7 +31,6 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import org.openmbee.junit.model.JUnitFailure;
 
 /**
  * This is both a Java CLI class compiled into a runnable JAR, and a Maven Mojo to transform a ZIP file of SNOMED CT-AU
@@ -68,7 +67,7 @@ public class Amt2FlatFile extends AbstractMojo {
 	private String junitFilePath;
 
 	@Parameter(property = "exitOnError", required = false, defaultValue = "false")
-	private static boolean exitOnError;
+    private boolean exitOnError;
 
 	private AmtCache conceptCache;
 
@@ -98,11 +97,13 @@ public class Amt2FlatFile extends AbstractMojo {
         options.addOption(Option.builder(JUNIT_FILE_PATH)
             .longOpt("junitFile")
             .argName("JUNIT_FILE")
+            .hasArg()
             .desc("Output file path to write out the junit result file")
             .build());
         options.addOption(Option.builder(REPLACEMENT_FILE_PATH)
             .longOpt("replacementsOutputFile")
             .argName("REPLACEMENTS_FILE_PATH")
+            .hasArg()
             .desc("Output file path to write out the file listing inactive AMT concepts and their replacement active concepts")
             .build());
 
@@ -131,15 +132,42 @@ public class Amt2FlatFile extends AbstractMojo {
 
     @Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
-		
+        logger.info("Input file is " + inputZipFilePath);
+        logger.info("Output will be written to " + outputFilePath);
+
+        if (replacementsOutputFilePath == null || replacementsOutputFilePath.isEmpty()) {
+            logger.info("Replacement file was not requested and will not be written");
+        } else {
+            logger.info("Replacement file will be written to " + replacementsOutputFilePath);
+        }
+
+        if (junitFilePath == null || junitFilePath.isEmpty()) {
+            logger.info("JUnit file was not requested and will not be written");
+        } else {
+            logger.info("JUnit file will be written to " + junitFilePath);
+        }
+
+        if (exitOnError) {
+            logger.info("AMT flat file generation will be aborted if any errors are detected");
+        } else {
+            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            logger.warning(
+                "Configured to continue regardless of detected errors. This is useful for testing pre-release AMT content, "
+                        + "but is NOT recommended for any other use! Resultant AMT flat file may be unreliable. "
+                        + "Consider rerunning with the -e or --exit-on-error flag set!!!");
+            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+        }
+
 		//initialise test suite	
 		this.testSuite = new JUnitTestSuite_EXT();
-		FileSystem zipFileSystem = null;
-		try {
-			zipFileSystem = FileSystems.newFileSystem(URI.create(
-							"jar:file:" + FileSystems.getDefault().getPath(inputZipFilePath).toAbsolutePath().toString()),
-					new HashMap<>());
-			conceptCache = new AmtCache(zipFileSystem, this.testSuite, exitOnError);
+        try (FileSystem zipFileSystem = FileSystems.newFileSystem(URI.create(
+            "jar:file:" + FileSystems.getDefault().getPath(inputZipFilePath).toAbsolutePath().toString()),
+                    new HashMap<>());) {
+
+            conceptCache = new AmtCache(zipFileSystem, this.testSuite, exitOnError);
             writeFlatFile(FileSystems.getDefault().getPath(outputFilePath));
             if (replacementsOutputFilePath != null && !replacementsOutputFilePath.isEmpty()) {
                 writeReplacementsFile(FileSystems.getDefault().getPath(replacementsOutputFilePath));
@@ -152,13 +180,6 @@ public class Amt2FlatFile extends AbstractMojo {
 			logger.info("Output junit results to: " + new File(junitFilePath).getAbsolutePath());
 		} catch (IOException e) {
 			throw new MojoExecutionException("Failed due to IO error executing transformation", e);
-		} finally {
-			if(zipFileSystem != null)
-				try {
-					zipFileSystem.close();
-				} catch (IOException e) {
-					throw new RuntimeException(e.getMessage());
-				}
 		}
 	}
 
@@ -183,11 +204,10 @@ public class Amt2FlatFile extends AbstractMojo {
                     tppTp = tpp.getTps().iterator().next();
                 } else {
                 	String message = "TPUU " + tpp + " has too many TPs " + tpp.getTps();
-        			JUnitFailure fail = new JUnitFailure().setValue(message).setMessage("TPUU error").setType("ERROR");
-        			JUnitTestCase_EXT concept = new JUnitTestCase_EXT().setName("TPUU has too many TPs (" + tpp + ")").addFailure(fail);
-        			testSuite.addTestCase(concept);
-                	if(exitOnError)
+                    testSuite.addTestCase("TPUU error", message, "TPUU has too many TPs (" + tpp + ")", "ERROR");
+                    if (exitOnError) {
                 		throw new RuntimeException(message);
+                    }
                 	continue;
                 }
                 
@@ -240,12 +260,7 @@ public class Amt2FlatFile extends AbstractMojo {
                             + " for MPP " + mpp;
                 	logger.warning(message);
 
-                	JUnitFailure fail = new JUnitFailure();
-                	fail.setValue(message).setMessage("Mismatch").setType("ERROR");
-                	JUnitTestCase_EXT testCase = new JUnitTestCase_EXT();
-                	testCase.setName("MPP mismatch (" + mpp.getId() + ")");
-                	testCase.addFailure(fail);
-                	testSuite.addTestCase(testCase);
+                    testSuite.addTestCase("Mismatch", message, "MPP mismatch (" + mpp.getId() + ")", "ERROR");
                 }
             }
         }
@@ -282,14 +297,11 @@ public class Amt2FlatFile extends AbstractMojo {
 		
 		if (parents.size() != 1) {
 			String message = "Expected 1 parent of type " + parentType + " for concept " + concept + " but got " + parents;
+            testSuite.addTestCase("multiple parents", message, "Multiple parents (" + concept.getId() + ")", "ERROR");
 			
-			JUnitFailure fail = new JUnitFailure().setMessage("multiple parents").setValue(message).setType("ERROR");
-			JUnitTestCase_EXT conceptCase = new JUnitTestCase_EXT().setName("Multiple parents (" + concept.getId() + ")").addFailure(fail);
-			testSuite.addTestCase(conceptCase);
-			
-			if(exitOnError)
+            if (exitOnError) {
 				throw new RuntimeException(message);
-			
+            }
 			return null;
 		}
 		return parents.iterator().next();
@@ -333,15 +345,15 @@ public class Amt2FlatFile extends AbstractMojo {
 		this.outputFilePath = outputFilePath;
 	}
 
-	public void setExitOnError(boolean exitOnError_param) {
-		exitOnError = exitOnError_param;
+    public void setExitOnError(boolean exitOnError) {
+        this.exitOnError = exitOnError;
 	}
 
     public void setJunitFilePath(String path) {
-		junitFilePath = path;
+        this.junitFilePath = path;
 	}
 
     public void setReplacementsFilePath(String path) {
-        replacementsOutputFilePath = path;
+        this.replacementsOutputFilePath = path;
     }
 }

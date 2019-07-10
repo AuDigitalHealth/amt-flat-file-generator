@@ -7,9 +7,12 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -48,10 +51,10 @@ public class AmtCache {
     private JUnitTestSuite_EXT testSuite;
     private JUnitTestCase_EXT graphCase;
 
-    public AmtCache(FileSystem amtZip, JUnitTestSuite_EXT testSuite, boolean exitOnError_param) throws IOException {
+    public AmtCache(FileSystem amtZip, JUnitTestSuite_EXT testSuite, boolean exitOnError) throws IOException {
         this.testSuite = testSuite;
+        this.exitOnError = exitOnError;
         processAmtFiles(amtZip);
-        exitOnError = exitOnError_param;
     }
 
     private void processAmtFiles(FileSystem amtZip) throws IOException {
@@ -78,8 +81,9 @@ public class AmtCache {
             JUnitFailure fail = new JUnitFailure();
             fail.setMessage(message);
             graphCase.addFailure(fail);
-            if (exitOnError)
+            if (exitOnError) {
                 throw new RuntimeException(message);
+            }
         }
 
         graph.incomingEdgesOf(AmtConcept.CTPP.getId())
@@ -87,6 +91,20 @@ public class AmtCache {
             .map(e -> e.getSource())
             .filter(id -> !AmtConcept.isEnumValue(Long.toString(id)))
             .forEach(id -> ctpps.put(id, conceptCache.get(id)));
+
+        Iterator<Entry<Long, Concept>> it = ctpps.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<Long, Concept> entry = it.next();
+            if (!entry.getValue().isActive()) {
+                String message = "Found inactive CTPP! " + entry.getValue();
+                logger.warning(message);
+                testSuite.addTestCase("Inactive CTPP found", entry.getValue().toString(), "Inactive_CTPP", "ERROR");
+                if (exitOnError) {
+                    throw new RuntimeException(message);
+                }
+                it.remove();
+            }
+        }
 
         conceptCache.values().stream().forEach(c -> {
             c.addAncestors(
@@ -96,11 +114,76 @@ public class AmtCache {
                     .collect(Collectors.<Long, Long, Concept> toMap(id -> id, id -> conceptCache.get(id))));
         });
 
+        validateConceptCache();
+
         logger.info("Loaded " + ctpps.size() + " CTPPs " + conceptCache.size() + " concepts ");
 
         validateUnits();
 
         logger.info("Validated cached concepts ");
+    }
+
+    private void validateConceptCache() {
+        // inactive concepts shouldn't have references to other things
+        assertConceptCache(c -> !c.isActive() && !c.getParents().isEmpty(), "Inactive concepts with parents", "Inactive_with_parents",
+            c -> c.getParents().clear());
+        assertConceptCache(c -> !c.isActive() && !c.getTps().isEmpty(), "Inactive concepts with TPs", "Inactive_with_TPs",
+            c -> c.getTps().clear());
+        assertConceptCache(c -> !c.isActive() && !c.getUnits().isEmpty(), "Inactive concepts with Units", "Inactive_with_Units",
+            c -> c.getUnits().clear());
+        assertConceptCache(c -> !c.isActive() && !c.getArtgIds().isEmpty(), "Inactive concepts with ARTGIDs", "Inactive_with_ARTGIDs",
+            c -> c.getArtgIds().clear());
+
+        // all concepts should have PTs and FSNs
+        assertConceptCache(c -> c.getFullSpecifiedName() == null || c.getFullSpecifiedName().isEmpty(), "Concepts with null or empty FSN",
+            "Null_or_empty_FSN", c -> c.setFullSpecifiedName("Concept " + c.getId() + " has not FSN!!!")); // fix is a no-op
+        assertConceptCache(c -> c.getPreferredTerm() == null || c.getPreferredTerm().isEmpty(), "Concepts with null or empty PT",
+            "Null_or_empty_PT", c -> c.setPreferredTerm("Concept " + c.getId() + " has not Preferred Term!!!"));
+
+        // active concepts should only reference active things
+        assertConceptCache(c -> c.isActive() && c.getUnits().stream().anyMatch(u -> !u.isActive()),
+            "Active concept with inactive linked unit/s", "Active_concept_inactive_units",
+            c -> c.getUnits().removeAll(c.getUnits().stream().filter(u -> !u.isActive()).collect(Collectors.toSet())));
+        assertConceptCache(c -> c.isActive() && c.getTps().stream().anyMatch(u -> !u.isActive()),
+            "Active concept with inactive linked TP/s", "Active_concept_inactive_TP",
+            c -> c.getTps().remove(c.getTps()
+                .stream()
+                .filter(t -> !t.isActive())
+                .collect(Collectors.toSet())));
+        assertConceptCache(c -> c.isActive() && c.getParents().values().stream().anyMatch(u -> !u.isActive()),
+            "Active concept with inactive linked parent/s", "Active_concept_inactive_parents",
+            c -> c.getParents().remove(c.getParents()
+                .entrySet()
+                .stream()
+                .filter(e -> !e.getValue().isActive())
+                .map(e -> e.getValue())
+                .collect(Collectors.toSet())));
+    }
+
+    private void assertConceptCache(Predicate<Concept> predicate, String message, String testCaseName, Consumer<Concept> fix) {
+        Set<Concept> errors =
+                conceptCache.values().stream().filter(predicate).collect(Collectors.toSet());
+
+        if (!errors.isEmpty()) {
+            logger.warning(message + " " + errors);
+            testSuite.addTestCase(message, errors.toString(), testCaseName, "ERROR");
+
+            if (exitOnError || fix == null) {
+                throw new RuntimeException(message + " " + errors);
+            } else {
+                logger.warning(
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                logger.warning(
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                logger.warning(
+                    "FIX APPLIED FOR ERRONEOUS INPUT DATA - continuing as requested, however RESULTS MAY BE UNRELIABLE AS A RESULT!!!!");
+                logger.warning(
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                logger.warning(
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                errors.stream().forEach(fix);
+            }
+        }
     }
 
     private void validateUnits() {
@@ -146,12 +229,8 @@ public class AmtCache {
                         .map(c -> c.getId() + " |" + c.getPreferredTerm() + "|\n")
                         .collect(Collectors.toSet());
 
-            JUnitFailure fail = new JUnitFailure();
-            fail.setMessage("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units");
-            fail.setValue(detail);
-            JUnitTestCase_EXT testCase = new JUnitTestCase_EXT().setName("heirarchy_error");
-            testCase.addFailure(fail);
-            testSuite.addTestCase(testCase);
+            testSuite.addTestCase("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units",
+                detail, "heirarchy_error", "ERROR");
 
             if (exitOnError) {
                 throw new RuntimeException(detail);
@@ -168,7 +247,7 @@ public class AmtCache {
             if (isAmtOrMetadataModule(row)) {
                 long conceptId = Long.parseLong(row[0]);
                 graph.addVertex(conceptId);
-                conceptCache.put(conceptId, new Concept(conceptId));
+                conceptCache.put(conceptId, new Concept(conceptId, isActive(row)));
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed processing row: " + row + " of Concepts file", e);

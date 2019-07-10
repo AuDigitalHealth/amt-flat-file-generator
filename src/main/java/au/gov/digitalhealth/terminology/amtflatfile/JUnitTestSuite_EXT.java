@@ -108,5 +108,15 @@ public class JUnitTestSuite_EXT extends JUnitTestSuite {
 		}
 		
 	}
+
+    public void addTestCase(String message, String detail, String testCaseName, String failType) {
+        JUnitFailure fail = new JUnitFailure();
+        fail.setMessage(message);
+        fail.setValue(detail);
+        fail.setType(failType);
+        JUnitTestCase_EXT testCase = new JUnitTestCase_EXT().setName(testCaseName);
+        testCase.addFailure(fail);
+        this.addTestCase(testCase);
+    }
 	
 }
