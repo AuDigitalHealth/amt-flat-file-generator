@@ -120,11 +120,11 @@ public class Amt2FlatFile extends AbstractMojo {
 			amt2FlatFile.execute();
 
 		} catch (ParseException exp) {
-			System.err.println("Parsing failed.  Reason: " + exp.getMessage());
+            logger.severe("Parsing failed.  Reason: " + exp.getMessage());
 			HelpFormatter formatter = new HelpFormatter();
 			formatter.printHelp("Amt2FlatFile", options);
 		} catch (MojoExecutionException | MojoFailureException e) {
-			System.err.println("Failed due to execution exception");
+            logger.severe("Failed due to execution exception");
 			throw new RuntimeException(e);
 		}
 		logger.info("Done in " + (System.currentTimeMillis() - start) + " milliseconds");
