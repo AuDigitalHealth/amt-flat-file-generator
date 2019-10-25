@@ -9,8 +9,11 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,6 +34,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.tika.Tika;
 
 /**
  * This is both a Java CLI class compiled into a runnable JAR, and a Maven Mojo to transform a ZIP file of SNOMED CT-AU
@@ -40,7 +44,9 @@ import org.apache.maven.plugins.annotations.Parameter;
 @Mojo(name = "amt-to-flat-file")
 public class Amt2FlatFile extends AbstractMojo {
 
-	private static final String INPUT_FILE_OPTION = "i";
+    private static final int MAX_ZIP_FILE_SIZE = 600000000;
+
+    private static final String INPUT_FILE_OPTION = "i";
 
 	private static final String OUTPUT_FILE_OPTION = "o";
 
@@ -70,6 +76,8 @@ public class Amt2FlatFile extends AbstractMojo {
     private boolean exitOnError;
 
 	private AmtCache conceptCache;
+
+    private Tika tika = new Tika();
 
 	public static void main(String args[]) throws IOException, URISyntaxException {
 		long start = System.currentTimeMillis();
@@ -135,15 +143,21 @@ public class Amt2FlatFile extends AbstractMojo {
         logger.info("Input file is " + inputZipFilePath);
         logger.info("Output will be written to " + outputFilePath);
 
+        validateInputZipFile(inputZipFilePath);
+
+        validateOutputPath(outputFilePath, "text/csv");
+        
         if (replacementsOutputFilePath == null || replacementsOutputFilePath.isEmpty()) {
             logger.info("Replacement file was not requested and will not be written");
         } else {
+            validateOutputPath(replacementsOutputFilePath, "text/csv");
             logger.info("Replacement file will be written to " + replacementsOutputFilePath);
         }
 
         if (junitFilePath == null || junitFilePath.isEmpty()) {
             logger.info("JUnit file was not requested and will not be written");
         } else {
+            validateOutputPath(junitFilePath, "application/xml");
             logger.info("JUnit file will be written to " + junitFilePath);
         }
 
@@ -182,6 +196,60 @@ public class Amt2FlatFile extends AbstractMojo {
 			throw new MojoExecutionException("Failed due to IO error executing transformation", e);
 		}
 	}
+
+    private void validateOutputPath(String outputPath, String expectedMimeType) {
+        try {
+            Path path = Paths.get(outputPath);
+
+            if (Files.isSymbolicLink(path)) {
+                throw new SecurityException("The input ZIP file must not be a symlink for security reasons");
+            }
+
+            if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                BasicFileAttributes attr = Files.readAttributes(
+                    path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+
+                if (!attr.isRegularFile()) {
+                    throw new SecurityException(
+                        "The specified output file " + outputFilePath + " exists, but is not a regular file. Cannot be overwritten.");
+                } else if (!tika.detect(path).equals(expectedMimeType)) {
+                    throw new SecurityException(
+                        "The specified output file " + outputFilePath + " exists, but is not a " + expectedMimeType
+                                + " file as expected, detected type was " + tika.detect(path) + ". Cannot be overwritten");
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not validate input ZIP file path", e);
+        }
+    }
+
+    private void validateInputZipFile(String inputZipFilePath) {
+        try {
+            Path path = Paths.get(inputZipFilePath);
+
+            if (Files.isSymbolicLink(path)) {
+                throw new SecurityException("The input ZIP file must not be a symlink for security reasons");
+            } else if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IllegalArgumentException("Specified input ZIP file " + inputZipFilePath + " does not exist");
+            }
+
+            BasicFileAttributes attr = Files.readAttributes(
+                path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+
+            if (!attr.isRegularFile()) {
+                throw new SecurityException("The input ZIP file must be a regular file");
+            } else if (attr.size() > MAX_ZIP_FILE_SIZE) {
+                throw new SecurityException("For security, input ZIP files over 600M are not accepted. "
+                        + "This should permit RF2 ALL or SNAPSHOT bundles requiring the required files");
+            } else if (!tika.detect(path).equals("application/zip")) {
+                throw new SecurityException(
+                    "TThe input ZIP file " + outputFilePath + " is not a zip file as expected, detected type was "
+                            + tika.detect(path));
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not validate input ZIP file path", e);
+        }
+    }
 
     private void writeFlatFile(Path path) throws IOException {
         if (path.getParent() != null && !Files.exists(path.getParent())) {
