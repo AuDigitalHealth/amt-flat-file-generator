@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -367,26 +366,6 @@ public class AmtCache {
 
     private boolean isAmtOrMetadataModule(String[] row) {
         return row[3].equals(AMT_MODULE_ID) || row[3].equals(INTERNATIONAL_METADATA_MODULE) || row[3].equals(AU_METADATA_MODULE);
-    }
-
-    public Collection<Long> getDescendantOf(Long... id) {
-        Set<Long> result = graph.incomingEdgesOf(id[0])
-            .stream()
-            .map(e -> e.getSource())
-            .collect(Collectors.toSet());
-
-        for (int i = 1; i < id.length; i++) {
-            result.retainAll(graph.incomingEdgesOf(id[i])
-                .stream()
-                .map(e -> e.getSource())
-                .collect(Collectors.toSet()));
-        }
-
-        return result;
-    }
-
-    public Concept getConcept(Long id) {
-        return conceptCache.get(id);
     }
 
     public Set<Triple<Concept, Concept, Concept>> getReplacementConcepts() {
