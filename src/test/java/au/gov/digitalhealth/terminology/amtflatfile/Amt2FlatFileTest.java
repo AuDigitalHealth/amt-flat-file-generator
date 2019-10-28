@@ -5,7 +5,6 @@ import static org.testng.Assert.assertTrue;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.FileSystemNotFoundException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -66,7 +65,7 @@ public class Amt2FlatFileTest {
 	}
 	
 	
-	@Test(groups="files", priority = 1, description = "An exception is thrown when the provided input zip file doesn't exist", expectedExceptions=FileSystemNotFoundException.class)
+    @Test(groups = "files", priority = 1, description = "An exception is thrown when the provided input zip file doesn't exist", expectedExceptions = IllegalArgumentException.class)
 	public void fileDoesNotExistThrowException() throws MojoExecutionException, MojoFailureException, IOException {
 
 		Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
