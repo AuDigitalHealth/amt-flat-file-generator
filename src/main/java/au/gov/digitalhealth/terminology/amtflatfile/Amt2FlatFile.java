@@ -202,7 +202,7 @@ public class Amt2FlatFile extends AbstractMojo {
             Path path = Paths.get(outputPath);
 
             if (Files.isSymbolicLink(path)) {
-                throw new SecurityException("The input ZIP file must not be a symlink for security reasons");
+                throw new SecurityException("The output " + outputPath + " file must not be a symlink for security reasons");
             }
 
             if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
@@ -211,15 +211,15 @@ public class Amt2FlatFile extends AbstractMojo {
 
                 if (!attr.isRegularFile()) {
                     throw new SecurityException(
-                        "The specified output file " + outputFilePath + " exists, but is not a regular file. Cannot be overwritten.");
+                        "The specified output file " + outputPath + " exists, but is not a regular file. Cannot be overwritten.");
                 } else if (!tika.detect(path).equals(expectedMimeType)) {
                     throw new SecurityException(
-                        "The specified output file " + outputFilePath + " exists, but is not a " + expectedMimeType
+                        "The specified output file " + outputPath + " exists, but is not a " + expectedMimeType
                                 + " file as expected, detected type was " + tika.detect(path) + ". Cannot be overwritten");
                 }
             }
         } catch (IOException e) {
-            throw new IllegalArgumentException("Could not validate input ZIP file path", e);
+            throw new IllegalArgumentException("Could not validate output file path " + outputPath, e);
         }
     }
 
@@ -243,11 +243,11 @@ public class Amt2FlatFile extends AbstractMojo {
                         + "This should permit RF2 ALL or SNAPSHOT bundles requiring the required files");
             } else if (!tika.detect(path).equals("application/zip")) {
                 throw new SecurityException(
-                    "TThe input ZIP file " + outputFilePath + " is not a zip file as expected, detected type was "
+                    "TThe input ZIP file " + inputZipFilePath + " is not a zip file as expected, detected type was "
                             + tika.detect(path));
             }
         } catch (IOException e) {
-            throw new IllegalArgumentException("Could not validate input ZIP file path", e);
+            throw new IllegalArgumentException("Could not validate input ZIP file path " + inputZipFilePath, e);
         }
     }
 
