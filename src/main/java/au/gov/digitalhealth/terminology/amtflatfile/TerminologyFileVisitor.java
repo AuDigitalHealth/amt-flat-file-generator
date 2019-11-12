@@ -16,7 +16,7 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
     private static final Logger logger = Logger.getLogger(TerminologyFileVisitor.class.getCanonicalName());
 
-    private static final int MAX_FILE_SIZE = 400000000;
+    private static final int MAX_FILE_SIZE = 1000000000;
 
     private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile;
     private List<Path> historicalAssociationRefsetFiles = new ArrayList<>();
@@ -120,6 +120,20 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
     public List<Path> getHistoricalAssociationRefsetFiles() {
         return historicalAssociationRefsetFiles;
+    }
+    
+    public void ensureAllFilesExist() {
+    	if(this.getConceptFile() == null) {
+    		throw new RuntimeException("Could not find concept file in rf2");
+    	} else if (this.getRelationshipFile() == null) {
+    		throw new RuntimeException("Could not find relationship file in rf2");
+    	} else if (this.getDescriptionFile() == null) {
+    		throw new RuntimeException("Could not find description file in rf2");
+    	} else if (this.getLanguageRefsetFile() == null) {
+    		throw new RuntimeException("Could not find language refset file in rf2");
+    	} else if (this.getArtgIdRefsetFile() == null) {
+    		throw new RuntimeException("Could not find artgid refset file in rf2");
+    	}
     }
 
 }

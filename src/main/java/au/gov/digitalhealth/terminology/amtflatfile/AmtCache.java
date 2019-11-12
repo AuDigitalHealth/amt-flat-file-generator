@@ -63,6 +63,8 @@ public class AmtCache {
         TerminologyFileVisitor visitor = new TerminologyFileVisitor();
 
         Files.walkFileTree(amtZip.getPath("/"), visitor);
+        
+        visitor.ensureAllFilesExist();
 
         readFile(visitor.getConceptFile(), s -> handleConceptRow(s), true, "\t");
         readFile(visitor.getRelationshipFile(), s -> handleRelationshipRow(s), true, "\t");
