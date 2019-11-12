@@ -75,7 +75,7 @@ public class Amt2FlatFileTest {
 
 	}
 	
-	@Test(groups="files", priority = 1, description = "An exception is thrown when the provided input zip file is missing critical files", expectedExceptions=NullPointerException.class)
+	@Test(groups="files", priority = 1, description = "An exception is thrown when the provided input zip file is missing critical files", expectedExceptions=RuntimeException.class)
 	public void fileMissingFromReleaseExceptionThrown() throws MojoExecutionException, MojoFailureException, IOException {
 
 		Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
