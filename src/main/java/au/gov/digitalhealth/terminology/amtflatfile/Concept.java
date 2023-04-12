@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Concept {
 
@@ -14,11 +15,13 @@ public class Concept {
     private String fullSpecifiedName;
     private String preferredTerm;
     private Set<Concept> units = new HashSet<>();
+    private Set<Concept> subpack = new HashSet<>();
     private Map<Long, Concept> parents = new HashMap<>();
     private Map<Long, Concept> ancestors = new HashMap<>();
     private Set<Concept> tps = new HashSet<>();
     private Set<String> artgIds = new HashSet<>();
     private boolean active;
+    private AmtConcept type;
 
     public Concept(long id, boolean active) {
         this.id = id;
@@ -61,6 +64,9 @@ public class Concept {
     }
 
     public Set<Concept> getUnits() {
+        if (units.isEmpty()) {
+            return getSubpack().stream().map(Concept::getUnits).flatMap(Set::stream).collect(Collectors.toSet());
+        }
         return units;
     }
 
@@ -110,6 +116,10 @@ public class Concept {
             }
         }
         return result;
+    }
+
+    public Collection<Concept> getAncestors() {
+        return ancestors.values();
     }
 
     @Override
@@ -163,5 +173,21 @@ public class Concept {
 
     public boolean isActive() {
         return active;
+    }
+
+    public void addSubpack(Concept concept) {
+        subpack.add(concept);
+    }
+
+    public Set<Concept> getSubpack() {
+        return subpack;
+    }
+
+    public void setType(AmtConcept type) {
+        this.type = type;
+    }
+
+    public AmtConcept getType() {
+        return type;
     }
 }

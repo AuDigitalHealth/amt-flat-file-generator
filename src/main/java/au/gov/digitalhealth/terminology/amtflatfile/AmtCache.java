@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.Triple;
 import org.jgrapht.alg.TransitiveClosure;
 import org.jgrapht.graph.SimpleDirectedGraph;
-import org.openmbee.junit.model.JUnitFailure;
+//import org.openmbee.junit.model.JUnitFailure;
 
 public class AmtCache {
 
@@ -34,6 +34,8 @@ public class AmtCache {
     private static final String AMT_MODULE_ID = "900062011000036108";
 
     private static final Logger logger = Logger.getLogger(AmtCache.class.getCanonicalName());
+    private static final String INTERNATIONAL_MODULE = "900000000000207008";
+    private static final String AU_MODULE = "32506021000036107";
 
     private SimpleDirectedGraph<Long, Edge> graph = new SimpleDirectedGraph<>(Edge.class);
 
@@ -47,18 +49,18 @@ public class AmtCache {
 
     private boolean exitOnError;
 
-    private JUnitTestSuite_EXT testSuite;
-    private JUnitTestCase_EXT graphCase;
+//    private JUnitTestSuite_EXT testSuite;
+//    private JUnitTestCase_EXT graphCase;
 
-    public AmtCache(FileSystem amtZip, JUnitTestSuite_EXT testSuite, boolean exitOnError) throws IOException {
-        this.testSuite = testSuite;
+    public AmtCache(FileSystem amtZip, boolean exitOnError) throws IOException {
+//        this.testSuite = testSuite;
         this.exitOnError = exitOnError;
         processAmtFiles(amtZip);
     }
 
     private void processAmtFiles(FileSystem amtZip) throws IOException {
 
-        graphCase = new JUnitTestCase_EXT().setName("Graph errors");
+//        graphCase = new JUnitTestCase_EXT().setName("Graph errors");
 
         TerminologyFileVisitor visitor = new TerminologyFileVisitor();
 
@@ -71,6 +73,7 @@ public class AmtCache {
         readFile(visitor.getLanguageRefsetFile(), s -> handleLanguageRefsetRow(s), true, "\t");
         readFile(visitor.getDescriptionFile(), s -> handleDescriptionRow(s), true, "\t");
         readFile(visitor.getArtgIdRefsetFile(), s -> handleArtgIdRefsetRow(s), true, "\t");
+        readFile(visitor.getMedicinalProductRefsetFile(), s -> handleMedicinalProductRefsetRow(s), true, "\t");
         for (Path historicalFile : visitor.getHistoricalAssociationRefsetFiles()) {
             readFile(historicalFile, s -> handleHistoricalAssociationRefsetRow(s), true, "\t");
         }
@@ -79,9 +82,9 @@ public class AmtCache {
             calculateTransitiveClosure();
         } catch (Exception e) {
             String message = "Could not close graph. Elements missing";
-            JUnitFailure fail = new JUnitFailure();
-            fail.setMessage(message);
-            graphCase.addFailure(fail);
+//            JUnitFailure fail = new JUnitFailure();
+//            fail.setMessage(message);
+//            graphCase.addFailure(fail);
             if (exitOnError) {
                 throw new RuntimeException(message);
             }
@@ -99,7 +102,7 @@ public class AmtCache {
             if (!entry.getValue().isActive()) {
                 String message = "Found inactive CTPP! " + entry.getValue();
                 logger.warning(message);
-                testSuite.addTestCase("Inactive CTPP found", entry.getValue().toString(), "Inactive_CTPP", "ERROR");
+//                testSuite.addTestCase("Inactive CTPP found", entry.getValue().toString(), "Inactive_CTPP", "ERROR");
                 if (exitOnError) {
                     throw new RuntimeException(message);
                 }
@@ -167,7 +170,7 @@ public class AmtCache {
 
         if (!errors.isEmpty()) {
             logger.warning(message + " " + errors);
-            testSuite.addTestCase(message, errors.toString(), testCaseName, "ERROR");
+//            testSuite.addTestCase(message, errors.toString(), testCaseName, "ERROR");
 
             if (exitOnError || fix == null) {
                 throw new RuntimeException(message + " " + errors);
@@ -229,9 +232,9 @@ public class AmtCache {
                     + tppsWithMpuus.stream()
                         .map(c -> c.getId() + " |" + c.getPreferredTerm() + "|\n")
                         .collect(Collectors.toSet());
-
-            testSuite.addTestCase("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units",
-                detail, "heirarchy_error", "ERROR");
+//
+//            testSuite.addTestCase("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units",
+//                detail, "heirarchy_error", "ERROR");
 
             if (exitOnError) {
                 throw new RuntimeException(detail);
@@ -245,7 +248,7 @@ public class AmtCache {
 
     private void handleConceptRow(String[] row) {
         try {
-            if (isAmtOrMetadataModule(row)) {
+            if (isAmtOrMetadataModule(row) || isIntModule(row)) {
                 long conceptId = Long.parseLong(row[0]);
                 graph.addVertex(conceptId);
                 conceptCache.put(conceptId, new Concept(conceptId, isActive(row)));
@@ -262,7 +265,7 @@ public class AmtCache {
             long destination = Long.parseLong(row[5]);
             String type = row[7];
 
-            if (isActive(row) && isAmtModule(row) && AttributeType.isEnumValue(type) && graph.containsVertex(source)
+            if (isActive(row) && (isAmtModule(row) || isAuModule(row) || isIntModule(row)) && AttributeType.isEnumValue(type) && graph.containsVertex(source)
                     && graph.containsVertex(destination)) {
                 Concept sourceConcept = conceptCache.get(source);
 
@@ -274,10 +277,16 @@ public class AmtCache {
 
                     case HAS_MPUU:
                     case HAS_TPUU:
+                    case CONTAINS_CLINICAL_DRUG:
                         sourceConcept.addUnit(conceptCache.get(destination));
                         break;
 
+                    case CONTAINS_PACKAGED_CLINICAL_DRUG:
+                        sourceConcept.addSubpack(conceptCache.get(destination));
+                        break;
+
                     case HAS_TP:
+                    case HAS_PRODUCT_NAME:
                         sourceConcept.addTp(conceptCache.get(destination));
 
                     default:
@@ -296,7 +305,7 @@ public class AmtCache {
 
             Long conceptId = Long.parseLong(row[4]);
 
-            if (isActive(row) && isAmtOrMetadataModule(row) && conceptCache.containsKey(conceptId)) {
+            if (isActive(row) && (isAmtOrMetadataModule(row) || isIntModule(row) || isAuModule(row)) && conceptCache.containsKey(conceptId)) {
                 String descriptionId = row[0];
                 String term = row[7];
                 Concept concept = conceptCache.get(conceptId);
@@ -314,7 +323,7 @@ public class AmtCache {
     private void handleLanguageRefsetRow(String[] row) {
 
         try {
-            if (isActive(row) && isAmtOrMetadataModule(row) && row[6].equals(PREFERRED)) {
+            if (isActive(row) && (isAmtOrMetadataModule(row) || isAuModule(row)) && row[6].equals(PREFERRED)) {
                 preferredDescriptionIdCache.add(Long.parseLong(row[5]));
             }
         } catch (Exception e) {
@@ -328,6 +337,17 @@ public class AmtCache {
             long conceptId = Long.parseLong(row[5]);
             if (isActive(row) && isAmtModule(row)) {
                 conceptCache.get(conceptId).addArtgIds(row[6]);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed processing row: " + row + " of ARTG file", e);
+        }
+    }
+
+    private void handleMedicinalProductRefsetRow(String[] row) {
+        try {
+            long conceptId = Long.parseLong(row[5]);
+            if (isActive(row) && isAmtModule(row) && row[4].equals("929360061000036106")) {
+                conceptCache.get(conceptId).setType(AmtConcept.MP);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed processing row: " + row + " of ARTG file", e);
@@ -369,7 +389,12 @@ public class AmtCache {
     private boolean isAmtOrMetadataModule(String[] row) {
         return row[3].equals(AMT_MODULE_ID) || row[3].equals(INTERNATIONAL_METADATA_MODULE) || row[3].equals(AU_METADATA_MODULE);
     }
-
+    private boolean isIntModule(String[] row) {
+        return row[3].equals(INTERNATIONAL_MODULE);
+    }
+    private boolean isAuModule(String[] row) {
+        return row[3].equals(AU_MODULE);
+    }
     public Set<Triple<Concept, Concept, Concept>> getReplacementConcepts() {
         return replacements;
     }

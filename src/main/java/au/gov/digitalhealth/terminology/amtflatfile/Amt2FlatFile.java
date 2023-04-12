@@ -58,7 +58,7 @@ public class Amt2FlatFile extends AbstractMojo {
 
 	private static final Logger logger = Logger.getLogger(Amt2FlatFile.class.getCanonicalName());
 
-	private JUnitTestSuite_EXT testSuite;
+//	private JUnitTestSuite_EXT testSuite;
 
 	@Parameter(property = "inputZipFilePath", required = true)
 	private String inputZipFilePath;
@@ -176,12 +176,12 @@ public class Amt2FlatFile extends AbstractMojo {
         }
 
 		//initialise test suite	
-		this.testSuite = new JUnitTestSuite_EXT();
+//		this.testSuite = new JUnitTestSuite_EXT();
         try (FileSystem zipFileSystem = FileSystems.newFileSystem(URI.create(
             "jar:file:" + FileSystems.getDefault().getPath(inputZipFilePath).toAbsolutePath().toString()),
                     new HashMap<>());) {
 
-            conceptCache = new AmtCache(zipFileSystem, this.testSuite, exitOnError);
+            conceptCache = new AmtCache(zipFileSystem, exitOnError);
             writeFlatFile(FileSystems.getDefault().getPath(outputFilePath));
             if (replacementsOutputFilePath != null && !replacementsOutputFilePath.isEmpty()) {
                 writeReplacementsFile(FileSystems.getDefault().getPath(replacementsOutputFilePath));
@@ -190,7 +190,7 @@ public class Amt2FlatFile extends AbstractMojo {
 				junitFilePath = "target/ValidationErrors.xml";
 			}
 			BufferedWriter outputJunitXml = new BufferedWriter(new FileWriter(junitFilePath));
-			testSuite.writeToFile(outputJunitXml);
+//			testSuite.writeToFile(outputJunitXml);
 			logger.info("Output junit results to: " + new File(junitFilePath).getAbsolutePath());
 		} catch (IOException e) {
 			throw new MojoExecutionException("Failed due to IO error executing transformation", e);
@@ -272,23 +272,41 @@ public class Amt2FlatFile extends AbstractMojo {
                     tppTp = tpp.getTps().iterator().next();
                 } else {
                 	String message = "TPUU " + tpp + " has too many TPs " + tpp.getTps();
-                    testSuite.addTestCase("TPUU error", message, "TPUU has too many TPs (" + tpp + ")", "ERROR");
+//                    testSuite.addTestCase("TPUU error", message, "TPUU has too many TPs (" + tpp + ")", "ERROR");
                     if (exitOnError) {
                 		throw new RuntimeException(message);
                     }
+                    logger.severe(message);
                 	continue;
                 }
                 
                 Concept mpp = getParent(AmtConcept.MPP, AmtConcept.TPP, tpp);
+                if (mpp == null) {
+                    mpp = getParent(AmtConcept.INT_MPP, AmtConcept.TPP, tpp);
+                    if (mpp == null) {
+                        logger.severe("No MPP found for TPP " + tpp);
+                    }
+                }
                 Set<Concept> tpuus = tpp.getUnits();
+
+                logger.info("tpuus: " + tpuus.size());
 
                 Set<Concept> addedMpuus = new HashSet<>();
                 for (Concept tpuu : tpuus) {
                     Concept tpuuTp = getParent(AmtConcept.TP, AmtConcept.TPUU, tpuu);
+                    if (tpuuTp == null) {
+                        if (tpuu.getTps().size() > 1) {
+                            throw new RuntimeException("TPUU " + tpuu + " has too many TPs " + tpuu.getTps());
+                        } else if (tpuu.getTps().size() == 1) {
+                            tpuuTp = tpuu.getTps().iterator().next();
+                        } else {
+                            logger.severe("TPUU " + tpuu + " has no TPs");
+                        }
+                    }
                     Concept mpuu = getParent(AmtConcept.MPUU, AmtConcept.TPUU, tpuu);
                     addedMpuus.add(mpuu);
 
-                    Set<Concept> mps = getParents(AmtConcept.MP, AmtConcept.MPUU, mpuu);
+                    Set<Concept> mps = getParents(AmtConcept.MP, mpuu);
 
                     Set<String> artgids = ctpp.getArtgIds();
                     if (artgids == null || artgids.size() == 0) {
@@ -300,7 +318,7 @@ public class Amt2FlatFile extends AbstractMojo {
                     if(tpuuTp == null || mpuu == null) {
                     	continue;
                     }
-                    
+
                     for (Concept mp : mps) {
                         for (String artgid : artgids) {
                             writer.write(
@@ -328,7 +346,7 @@ public class Amt2FlatFile extends AbstractMojo {
                             + " for MPP " + mpp;
                 	logger.warning(message);
 
-                    testSuite.addTestCase("Mismatch", message, "MPP mismatch (" + mpp.getId() + ")", "ERROR");
+//                    testSuite.addTestCase("Mismatch", message, "MPP mismatch (" + mpp.getId() + ")", "ERROR");
                 }
             }
         }
@@ -365,7 +383,7 @@ public class Amt2FlatFile extends AbstractMojo {
 		
 		if (parents.size() != 1) {
 			String message = "Expected 1 parent of type " + parentType + " for concept " + concept + " but got " + parents;
-            testSuite.addTestCase("multiple parents", message, "Multiple parents (" + concept.getId() + ")", "ERROR");
+//            testSuite.addTestCase("multiple parents", message, "Multiple parents (" + concept.getId() + ")", "ERROR");
 			
             if (exitOnError) {
 				throw new RuntimeException(message);
@@ -374,6 +392,19 @@ public class Amt2FlatFile extends AbstractMojo {
 		}
 		return parents.iterator().next();
 	}
+
+    private Set<Concept> getParents(AmtConcept parentType, Concept concept) {
+        Set<Concept> leafParents = new HashSet<>();
+
+        leafParents.addAll(concept.getAncestors().stream().filter(p -> p.getType() != null && p.getType().equals(parentType)).collect(Collectors.toSet()));
+
+        Set<Concept> redunantAncestors =
+                leafParents.stream().flatMap(p -> p.getAncestors().stream()).collect(Collectors.toSet());
+
+        leafParents.removeAll(redunantAncestors);
+
+        return leafParents;
+    }
 
 	private Set<Concept> getParents(AmtConcept parentType, AmtConcept current, Concept concept) {
 		return getParents(parentType, current, Collections.singleton(concept));

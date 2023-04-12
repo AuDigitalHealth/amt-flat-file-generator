@@ -15,7 +15,10 @@ public enum AmtConcept {
     SUBSTANCE(30344011000036106L, "Australian substance"),
     REPLACED_BY(900000000000526001L, "REPLACED BY"),
     POSSIBLY_EQUIVALENT_TO(900000000000523009L, "POSSIBLY EQUIVALENT TO"),
-    SAME_AS(900000000000527005L, "SAME AS");
+    SAME_AS(900000000000527005L, "SAME AS"),
+    INT_MPP(781405001, "Medicinal product pack"),
+    INT_MP(763158003, "Medicinal product"),
+    INT_MPF(91000001109L, "Medicinal product form");
     // @formatter:on
 
     private static HashMap<Long, AmtConcept> instanceMap = new HashMap<>();
