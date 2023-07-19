@@ -79,6 +79,10 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
                 if (verifyFile(file)) {
                     historicalAssociationRefsetFiles.add(file);
                 }
+            } else if (fileName.matches("der2_cRefset_AssociationSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    historicalAssociationRefsetFiles.add(file);
+                }
             } else if (fileName.matches("der2_Refset_MedicinalProductSnapshot_AU1000036_\\d{8}\\.txt") || fileName.matches("der2_Refset_SimpleSnapshot_AU1000036_\\d{8}\\.txt")) {
                 if (verifyFile(file)) {
                     medicinalProductRefsetFile = file;

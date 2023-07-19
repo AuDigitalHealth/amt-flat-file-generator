@@ -4,12 +4,8 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
@@ -37,6 +33,19 @@ public class AmtCache {
     private static final String INTERNATIONAL_MODULE = "900000000000207008";
     private static final String AU_MODULE = "32506021000036107";
 
+    private static final List<String> HISTORICAL_ASSOCAITION_IDS = List.of("900000000000523009",
+            "900000000000530003",
+            "900000000000525002",
+            "900000000000524003",
+            "1186924009",
+            "900000000000523009",
+            "1186921001",
+            "900000000000531004",
+            "900000000000526001",
+            "900000000000527005",
+            "900000000000529008",
+            "900000000000528000");
+
     private SimpleDirectedGraph<Long, Edge> graph = new SimpleDirectedGraph<>(Edge.class);
 
     private Map<Long, Concept> conceptCache = new HashMap<>();
@@ -45,7 +54,7 @@ public class AmtCache {
 
     private Map<Long, Concept> ctpps = new HashMap<>();
 
-    private Set<Triple<Concept, Concept, Concept>> replacements = new HashSet<>();
+    private Set<Replacement> replacements = new HashSet<>();
 
     private boolean exitOnError;
 
@@ -248,7 +257,7 @@ public class AmtCache {
 
     private void handleConceptRow(String[] row) {
         try {
-            if (isAmtOrMetadataModule(row) || isIntModule(row)) {
+            if (isAuModule(row) || isAmtOrMetadataModule(row) || isIntModule(row)) {
                 long conceptId = Long.parseLong(row[0]);
                 graph.addVertex(conceptId);
                 conceptCache.put(conceptId, new Concept(conceptId, isActive(row)));
@@ -356,12 +365,18 @@ public class AmtCache {
 
     private void handleHistoricalAssociationRefsetRow(String[] row) {
         try {
-            if (isActive(row) && isAmtModule(row) && !isDescriptionId(row[5])) {
+            if (isActive(row) && isAmtModule(row) && !isDescriptionId(row[5]) && HISTORICAL_ASSOCAITION_IDS.contains(row[4])) {
                 Concept replacementType = conceptCache.get(Long.parseLong(row[4]));
                 Concept inactiveConcept = conceptCache.get(Long.parseLong(row[5]));
                 Concept replacementConcept = conceptCache.get(Long.parseLong(row[6]));
 
-                replacements.add(Triple.of(inactiveConcept, replacementType, replacementConcept));
+                if (replacementType == null || inactiveConcept == null || replacementConcept == null) {
+                    throw new RuntimeException("Failed processing row: " + String.join("\t", row) + " of History file.\nOne of the concepts is null. "
+                            + "\nreplacementType: " + replacementType + " replacement id is " + Long.parseLong(row[4]) + "\ninactiveConcept: " + inactiveConcept + "\nreplacementConcept: "
+                            + replacementConcept);
+                }
+
+                replacements.add(new Replacement(inactiveConcept, replacementType, replacementConcept, row[1]));
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed processing row: " + row + " of History file", e);
@@ -395,7 +410,7 @@ public class AmtCache {
     private boolean isAuModule(String[] row) {
         return row[3].equals(AU_MODULE);
     }
-    public Set<Triple<Concept, Concept, Concept>> getReplacementConcepts() {
+    public Set<Replacement> getReplacementConcepts() {
         return replacements;
     }
 

@@ -267,6 +267,9 @@ public class Amt2FlatFile extends AbstractMojo {
 
             for (Concept ctpp : conceptCache.getCtpps().values()) {
                 Concept tpp = getParent(AmtConcept.TPP, AmtConcept.CTPP, ctpp);
+                if (tpp == null) {
+                    tpp = ctpp;
+                }
                 Concept tppTp = null;
                 if (tpp.getTps().size() == 1) {
                     tppTp = tpp.getTps().iterator().next();
@@ -304,6 +307,9 @@ public class Amt2FlatFile extends AbstractMojo {
                         }
                     }
                     Concept mpuu = getParent(AmtConcept.MPUU, AmtConcept.TPUU, tpuu);
+                    if (mpuu == null) {
+                        throw new RuntimeException("TPUU " + tpuu + " has no MPUU");
+                    }
                     addedMpuus.add(mpuu);
 
                     Set<Concept> mps = getParents(AmtConcept.MP, mpuu);
@@ -363,14 +369,17 @@ public class Amt2FlatFile extends AbstractMojo {
 
             writer.write(
                 String.join(",", "INACTIVE SCTID", "INACTIVE PT", "REPLACEMENT TYPE SCTID", "REPLACEMENT TYPE PT", "REPLACEMENT SCTID",
-                    "REPLACEMENT PT"));
+                    "REPLACEMENT PT", "DATE"));
             writer.newLine();
-            for (Triple<Concept, Concept, Concept> entry : conceptCache.getReplacementConcepts()) {
+            for (Replacement entry : conceptCache.getReplacementConcepts()) {
+                if (entry.getInactiveConcept() == null || entry.getReplacementType() == null || entry.getActiveConcept() == null) {
+                    throw new RuntimeException("Null replacement concept: " + entry);
+                }
                 writer.write(
                     String.join(",",
-                        entry.getLeft().getId() + "", "\"" + entry.getLeft().getPreferredTerm() + "\"",
-                        entry.getMiddle().getId() + "", "\"" + entry.getMiddle().getPreferredTerm() + "\"",
-                        entry.getRight().getId() + "", "\"" + entry.getRight().getPreferredTerm() + "\""));
+                        entry.getActiveConcept().getId() + "", "\"" + entry.getActiveConcept().getPreferredTerm() + "\"",
+                        entry.getReplacementType().getId() + "", "\"" + entry.getReplacementType().getPreferredTerm() + "\"",
+                        entry.getActiveConcept().getId() + "", "\"" + entry.getActiveConcept().getPreferredTerm() + "\"", entry.getVersion()));
                 writer.newLine();
             }
         }
