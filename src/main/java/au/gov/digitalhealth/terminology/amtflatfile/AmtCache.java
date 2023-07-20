@@ -12,10 +12,11 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang3.tuple.Triple;
 import org.jgrapht.alg.TransitiveClosure;
 import org.jgrapht.graph.SimpleDirectedGraph;
-//import org.openmbee.junit.model.JUnitFailure;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitFailure;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestCase;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestSuite;
 
 public class AmtCache {
 
@@ -58,18 +59,18 @@ public class AmtCache {
 
     private boolean exitOnError;
 
-//    private JUnitTestSuite_EXT testSuite;
-//    private JUnitTestCase_EXT graphCase;
+    private JUnitTestSuite testSuite;
+    private JUnitTestCase graphCase;
 
-    public AmtCache(FileSystem amtZip, boolean exitOnError) throws IOException {
-//        this.testSuite = testSuite;
+    public AmtCache(FileSystem amtZip, boolean exitOnError, JUnitTestSuite testSuite) throws IOException {
+        this.testSuite = testSuite;
         this.exitOnError = exitOnError;
         processAmtFiles(amtZip);
     }
 
     private void processAmtFiles(FileSystem amtZip) throws IOException {
 
-//        graphCase = new JUnitTestCase_EXT().setName("Graph errors");
+        graphCase = new JUnitTestCase().setName("Graph errors");
 
         TerminologyFileVisitor visitor = new TerminologyFileVisitor();
 
@@ -91,9 +92,9 @@ public class AmtCache {
             calculateTransitiveClosure();
         } catch (Exception e) {
             String message = "Could not close graph. Elements missing";
-//            JUnitFailure fail = new JUnitFailure();
-//            fail.setMessage(message);
-//            graphCase.addFailure(fail);
+            JUnitFailure fail = new JUnitFailure();
+            fail.setMessage(message);
+            graphCase.addFailure(fail);
             if (exitOnError) {
                 throw new RuntimeException(message);
             }
@@ -111,7 +112,7 @@ public class AmtCache {
             if (!entry.getValue().isActive()) {
                 String message = "Found inactive CTPP! " + entry.getValue();
                 logger.warning(message);
-//                testSuite.addTestCase("Inactive CTPP found", entry.getValue().toString(), "Inactive_CTPP", "ERROR");
+                testSuite.addTestCase("Inactive CTPP found", entry.getValue().toString(), this.getClass().getName(), "Inactive_CTPP", "ERROR");
                 if (exitOnError) {
                     throw new RuntimeException(message);
                 }
@@ -179,7 +180,7 @@ public class AmtCache {
 
         if (!errors.isEmpty()) {
             logger.warning(message + " " + errors);
-//            testSuite.addTestCase(message, errors.toString(), testCaseName, "ERROR");
+            testSuite.addTestCase(message, errors.toString(), this.getClass().getName(), testCaseName, "ERROR");
 
             if (exitOnError || fix == null) {
                 throw new RuntimeException(message + " " + errors);
@@ -241,9 +242,9 @@ public class AmtCache {
                     + tppsWithMpuus.stream()
                         .map(c -> c.getId() + " |" + c.getPreferredTerm() + "|\n")
                         .collect(Collectors.toSet());
-//
-//            testSuite.addTestCase("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units",
-//                detail, "heirarchy_error", "ERROR");
+
+            testSuite.addTestCase("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units",
+                detail, this.getClass().getName(), "heirarchy_error", "ERROR");
 
             if (exitOnError) {
                 throw new RuntimeException(detail);

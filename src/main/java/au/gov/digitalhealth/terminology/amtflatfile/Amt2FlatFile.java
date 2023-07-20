@@ -28,13 +28,13 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.tika.Tika;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestSuite;
 
 /**
  * This is both a Java CLI class compiled into a runnable JAR, and a Maven Mojo to transform a ZIP file of SNOMED CT-AU
@@ -58,7 +58,7 @@ public class Amt2FlatFile extends AbstractMojo {
 
 	private static final Logger logger = Logger.getLogger(Amt2FlatFile.class.getCanonicalName());
 
-//	private JUnitTestSuite_EXT testSuite;
+	private JUnitTestSuite testSuite;
 
 	@Parameter(property = "inputZipFilePath", required = true)
 	private String inputZipFilePath;
@@ -176,12 +176,12 @@ public class Amt2FlatFile extends AbstractMojo {
         }
 
 		//initialise test suite	
-//		this.testSuite = new JUnitTestSuite_EXT();
+		this.testSuite = new JUnitTestSuite();
         try (FileSystem zipFileSystem = FileSystems.newFileSystem(URI.create(
             "jar:file:" + FileSystems.getDefault().getPath(inputZipFilePath).toAbsolutePath().toString()),
                     new HashMap<>());) {
 
-            conceptCache = new AmtCache(zipFileSystem, exitOnError);
+            conceptCache = new AmtCache(zipFileSystem, exitOnError, testSuite);
             writeFlatFile(FileSystems.getDefault().getPath(outputFilePath));
             if (replacementsOutputFilePath != null && !replacementsOutputFilePath.isEmpty()) {
                 writeReplacementsFile(FileSystems.getDefault().getPath(replacementsOutputFilePath));
@@ -190,7 +190,7 @@ public class Amt2FlatFile extends AbstractMojo {
 				junitFilePath = "target/ValidationErrors.xml";
 			}
 			BufferedWriter outputJunitXml = new BufferedWriter(new FileWriter(junitFilePath));
-//			testSuite.writeToFile(outputJunitXml);
+			testSuite.writeToFile(outputJunitXml);
 			logger.info("Output junit results to: " + new File(junitFilePath).getAbsolutePath());
 		} catch (IOException e) {
 			throw new MojoExecutionException("Failed due to IO error executing transformation", e);
@@ -275,7 +275,7 @@ public class Amt2FlatFile extends AbstractMojo {
                     tppTp = tpp.getTps().iterator().next();
                 } else {
                 	String message = "TPUU " + tpp + " has too many TPs " + tpp.getTps();
-//                    testSuite.addTestCase("TPUU error", message, "TPUU has too many TPs (" + tpp + ")", "ERROR");
+                    testSuite.addTestCase("TPUU error", message, this.getClass().getName(), "TPUU has too many TPs (" + tpp + ")", "ERROR");
                     if (exitOnError) {
                 		throw new RuntimeException(message);
                     }
@@ -292,7 +292,7 @@ public class Amt2FlatFile extends AbstractMojo {
                 }
                 Set<Concept> tpuus = tpp.getUnits();
 
-                logger.info("tpuus: " + tpuus.size());
+                //logger.info("tpuus: " + tpuus.size());
 
                 Set<Concept> addedMpuus = new HashSet<>();
                 for (Concept tpuu : tpuus) {
@@ -352,7 +352,7 @@ public class Amt2FlatFile extends AbstractMojo {
                             + " for MPP " + mpp;
                 	logger.warning(message);
 
-//                    testSuite.addTestCase("Mismatch", message, "MPP mismatch (" + mpp.getId() + ")", "ERROR");
+                    testSuite.addTestCase("Mismatch", message, this.getClass().getName(), "MPP mismatch (" + mpp.getId() + ")", "ERROR");
                 }
             }
         }
@@ -392,7 +392,7 @@ public class Amt2FlatFile extends AbstractMojo {
 		
 		if (parents.size() != 1) {
 			String message = "Expected 1 parent of type " + parentType + " for concept " + concept + " but got " + parents;
-//            testSuite.addTestCase("multiple parents", message, "Multiple parents (" + concept.getId() + ")", "ERROR");
+            testSuite.addTestCase("multiple parents", message, this.getClass().getName(), "Multiple parents (" + concept.getId() + ")", "ERROR");
 			
             if (exitOnError) {
 				throw new RuntimeException(message);
