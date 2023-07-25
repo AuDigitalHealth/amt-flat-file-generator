@@ -25,9 +25,17 @@ public enum AttributeType {
     UNIT_OF_USE_SIZE(700000141000036106L), 
     UNIT_OF_USE_QUANTITY(700000131000036101L),
     SUBPACK_QUANTITY(700000121000036103L),
+    HAS_CONCENTRATION_STRENGH_VALUE(999000021000168100L),
+    HAS_CONCENTRATION_STRENGH_UNIT(999000031000168102L),
+    HAS_TOTAL_QUANTITY_VALUE(999000041000168106L),
+    HAS_TOTAL_QUANTITY_UNIT(999000051000168108L),
     CONTAINS_CLINICAL_DRUG(774160008L),
-    CONTAINS_PACKAGED_CLINICAL_DRUG(31000001108L),
-    HAS_PRODUCT_NAME(774158006);
+    CONTAINS_DEVICE(999000081000168101L),
+    HAS_DEVICE_TYPE(999000061000168105L),
+    PACKAGE(999000071000168104L),
+    CONTAINS_PACKAGED_CLINICAL_DRUG(999000011000168107L),
+    HAS_PRODUCT_NAME(774158006),
+    HAS_OTHER_IDENTIFYING_INFORMATION(999000001000168109L);
     // @formatter:on
 
     private static HashMap<Long, AttributeType> instanceMap = new HashMap<>();
@@ -42,7 +50,7 @@ public enum AttributeType {
         if (instanceMap.containsKey(id)) {
             return instanceMap.get(id);
         } else {
-            throw new RuntimeException("Cannot find enum for id " + id);
+            throw new RuntimeException("Cannot find enum for id " + id + " " + instanceMap);
         }
     }
 

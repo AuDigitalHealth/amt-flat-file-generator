@@ -18,7 +18,7 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
     private static final int MAX_FILE_SIZE = 1000000000;
 
-    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile, medicinalProductRefsetFile;
+    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile, AMTRefsetFile;
     private List<Path> historicalAssociationRefsetFiles = new ArrayList<>();
 
     private Tika tika = new Tika();
@@ -83,9 +83,9 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
                 if (verifyFile(file)) {
                     historicalAssociationRefsetFiles.add(file);
                 }
-            } else if (fileName.matches("der2_Refset_MedicinalProductSnapshot_AU1000036_\\d{8}\\.txt") || fileName.matches("der2_Refset_SimpleSnapshot_AU1000036_\\d{8}\\.txt")) {
+            } else if (fileName.matches("der2_Refset_SimpleSnapshot_AU1000036_\\d{8}\\.txt")) {
                 if (verifyFile(file)) {
-                    medicinalProductRefsetFile = file;
+                    AMTRefsetFile = file;
                 }
             }
         }
@@ -126,9 +126,10 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
         return artgIdRefsetFile;
     }
 
-    public Path getMedicinalProductRefsetFile() {
-        return medicinalProductRefsetFile;
+    public Path getAMTRefsetFile() {
+        return AMTRefsetFile;
     }
+
 
     public List<Path> getHistoricalAssociationRefsetFiles() {
         return historicalAssociationRefsetFiles;
