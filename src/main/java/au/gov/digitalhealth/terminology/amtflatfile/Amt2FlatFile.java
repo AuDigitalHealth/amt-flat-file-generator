@@ -357,9 +357,9 @@ public class Amt2FlatFile extends AbstractMojo {
                     testSuite.addTestCase("Mismatch", message, this.getClass().getName(), "MPP mismatch (" + mpp.getId() + ")", "ERROR");
                 }
 
-                if ( count % 1500 == 0) {
+                if ( count % 10000 == 0) {
                     long endTime = System.currentTimeMillis();
-                    logger.info("Processed CTPP [" + count + " of " + ctppCount + "] Time spent processing 1500 CTPPs is " + (endTime - startTime) + "ms");
+                    logger.info("Processed CTPP [" + count + " of " + ctppCount + "] Time spent processing 10000 CTPPs is " + (endTime - startTime) + "ms");
                     startTime = System.currentTimeMillis();
                 }
                 count++;
@@ -368,9 +368,13 @@ public class Amt2FlatFile extends AbstractMojo {
 	}
 
     private Set<Concept> memberOf(Set<Concept> concepts, AmtRefset refset) {
-        Map<Long, Concept> theRefSetConcepts = conceptCache.getAmtRefsets().get(refset.getIdString());
-        Set<Concept> refsetMembers = new HashSet<>(theRefSetConcepts.values());
-        refsetMembers.retainAll(concepts);
+        Set<Concept> refsetMembers = new HashSet<>();
+        Map<Long, Concept> refsetConcepts = conceptCache.getAmtRefsets().get(refset.getIdString());
+        for (Concept concept : concepts) {
+            if (refsetConcepts.containsKey(concept.getId())) {
+                refsetMembers.add(concept);
+            }
+        }
         return refsetMembers;
     }
 
@@ -401,8 +405,7 @@ public class Amt2FlatFile extends AbstractMojo {
     }
 
     private Concept getParent(AmtRefset parentType, Concept concept) {
-		Set<Concept> parents = getParents(parentType, concept).stream()
-				.collect(Collectors.toSet());
+		Set<Concept> parents = getParents(parentType, concept);
 		
 		if (parents.size() != 1) {
 			String message = "Expected 1 parent of type " + parentType + " for concept " + concept + " but got " + parents;
@@ -419,7 +422,7 @@ public class Amt2FlatFile extends AbstractMojo {
     private Set<Concept> getParents(AmtRefset parentType, Concept concept) {
         Set<Concept> leafParents = new HashSet<>();
 
-        leafParents.addAll(concept.getAncestors().stream().filter(p -> p.getType() != null).collect(Collectors.toSet()));
+        leafParents.addAll(concept.getAncestors().stream().collect(Collectors.toSet()));
         leafParents = memberOf(leafParents, parentType);
 
         Set<Concept> redunantAncestors =
