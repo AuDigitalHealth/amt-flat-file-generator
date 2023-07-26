@@ -18,6 +18,7 @@
 	</scm>
 
 	<properties>
+		<java.version>17</java.version>
 		<deployment.repo.id>amtv4</deployment.repo.id>
 		<deployment.repo.url>https://pkgs.dev.azure.com/OD225632-NCTS-ContentAndTooling/OD225632-NCTS-ContentAndTooling/_packaging/amtv4/maven/v1</deployment.repo.url>
 	</properties>
@@ -103,8 +104,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.7.0</version>
 				<configuration>
-					<source>9</source>
-					<target>9</target>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
 				</configuration>
 			</plugin>
 			<plugin>
