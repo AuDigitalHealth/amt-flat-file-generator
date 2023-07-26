@@ -4,7 +4,7 @@
 	<groupId>au.gov.digitalhealth.terminology</groupId>
 	<artifactId>amt-to-flat-file</artifactId>
 
-	<version>master-SNAPSHOT</version>
+	<version>amtv4-SNAPSHOT</version>
 	<name>AMT flat file generator</name>
 	<description>Generates an "AMT Flat File" from a Snapshot SNOMED CT-AU release</description>
 
@@ -18,11 +18,6 @@
 	</scm>
 
 	<dependencies>
-<!--		<dependency>-->
-<!--			<groupId>org.openmbee.junit</groupId>-->
-<!--			<artifactId>junit-xml-parser</artifactId>-->
-<!--			<version>1.0.0</version>-->
-<!--		</dependency>-->
 		<dependency>
 			<groupId>jakarta.xml.bind</groupId>
 			<artifactId>jakarta.xml.bind-api</artifactId>
