@@ -17,6 +17,11 @@
 		<url>https://github.com/AuDigitalHealth/amt-flat-file-generator.git</url>
 	</scm>
 
+	<properties>
+		<deployment.repo.id>amtv4</deployment.repo.id>
+		<deployment.repo.url>https://pkgs.dev.azure.com/OD225632-NCTS-ContentAndTooling/OD225632-NCTS-ContentAndTooling/_packaging/amtv4/maven/v1</deployment.repo.url>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>jakarta.xml.bind</groupId>
@@ -173,14 +178,48 @@
 	</build>
 
 	<repositories>
-<!--		<repository>-->
-<!--			<id>Spring Lib Release</id>-->
-<!--			<name>Spring Lib Release</name>-->
-<!--			<url>https://repo.spring.io/libs-release/</url>-->
-<!--		</repository>-->
 		<repository>
 			<id>spring-releases</id>
 			<url>https://repo.spring.io/release</url>
 		</repository>
+		<repository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
 	</repositories>
+	<pluginRepositories>
+		<pluginRepository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</pluginRepository>
+	</pluginRepositories>
+	<distributionManagement>
+		<repository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<name>Maven Release Feed</name>
+			<layout>default</layout>
+			<uniqueVersion>true</uniqueVersion>
+		</repository>
+		<snapshotRepository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<name>Maven Snapshot Release Feed</name>
+			<layout>default</layout>
+			<uniqueVersion>true</uniqueVersion>
+		</snapshotRepository>
+	</distributionManagement>
+
 </project>
