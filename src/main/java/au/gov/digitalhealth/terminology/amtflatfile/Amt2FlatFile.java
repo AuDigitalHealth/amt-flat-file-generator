@@ -242,9 +242,9 @@ public class Amt2FlatFile extends AbstractMojo {
             } else if (attr.size() > MAX_ZIP_FILE_SIZE) {
                 throw new SecurityException("For security, input ZIP files over 600M are not accepted. "
                         + "This should permit RF2 ALL or SNAPSHOT bundles requiring the required files");
-            } else if (!tika.detect(path).equals("application/zip")) {
+            } else if (!tika.detect(path).equals("application/zip") && !tika.detect(path).equals("application/java-archive")) {
                 throw new SecurityException(
-                    "TThe input ZIP file " + inputZipFilePath + " is not a zip file as expected, detected type was "
+                    "The input ZIP file " + inputZipFilePath + " is not a zip file as expected, detected type was "
                             + tika.detect(path));
             }
         } catch (IOException e) {
