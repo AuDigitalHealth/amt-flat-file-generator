@@ -4,7 +4,7 @@
 	<groupId>au.gov.digitalhealth.terminology</groupId>
 	<artifactId>amt-to-flat-file</artifactId>
 
-	<version>amtv4-SNAPSHOT</version>
+	<version>amt-v4-SNAPSHOT</version>
 	<name>AMT flat file generator</name>
 	<description>Generates an "AMT Flat File" from a Snapshot SNOMED CT-AU release</description>
 
