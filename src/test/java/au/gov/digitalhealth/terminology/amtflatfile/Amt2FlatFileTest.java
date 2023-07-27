@@ -3,7 +3,6 @@ package au.gov.digitalhealth.terminology.amtflatfile;
 import static org.testng.Assert.assertTrue;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -11,24 +10,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-//import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-//import org.openmbee.junit.JUnitMarshalling;
-//import org.openmbee.junit.model.JUnitTestSuite;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-import org.testng.xml.XmlSuite;
-import org.testng.xml.XmlTest;
-import org.testng.xml.internal.Parser;
 import au.gov.digitalhealth.JUnitFileParser;
 import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitFailure;
 import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestCase;
-import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestSuite;
 
 public class Amt2FlatFileTest {
 
@@ -74,7 +66,6 @@ public class Amt2FlatFileTest {
                     .map(fail -> fail.getValue())
                     .collect(Collectors.toList()));
         });
-        // List<String> failures = testCases.stream().flatMap(aCase -> aCase.getFailures().stream().map(fail -> fail.getValue())).collect(Collectors.toList());
         Assert.assertTrue(fails.stream().anyMatch(fail -> fail.contains("1212261000168108")));
         Assert.assertTrue(fails.stream().anyMatch(fail -> fail.contains("1209811000168100")));
         Assert.assertEquals(fails.size(), 10);
