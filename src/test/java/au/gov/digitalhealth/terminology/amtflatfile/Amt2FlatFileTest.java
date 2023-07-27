@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -102,14 +103,22 @@ public class Amt2FlatFileTest {
 	@Test(groups="parse", priority = 2, description = "The output file should match the expected result. Test line by line, regardless fo order")
 	public void outputMatchesExpectedImproved() throws MojoExecutionException, MojoFailureException, IOException, NoSuchAlgorithmException {
 
-       Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
+        Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
 		amt2FlatFile.setInputZipFilePath(inFile);
 		amt2FlatFile.setOutputFilePath(outFile);
-       amt2FlatFile.setReplacementsFilePath(replacementFile);
+        amt2FlatFile.setReplacementsFilePath(replacementFile);
 		amt2FlatFile.execute();
 
-       assertTrue(FileUtils.contentEqualsIgnoreEOL(new File(outFile), new File(expectedFile), null), "AMT flat file content as expected");
-       assertTrue(FileUtils.contentEqualsIgnoreEOL(new File(replacementFile), new File(expectedReplacementFile), null),
-           "Replacements file as expected");
+        List<String> outFileLines = FileUtils.readLines(new File(outFile), "UTF-8");
+        List<String> expectedLines = FileUtils.readLines(new File(expectedFile), "UTF-8");
+        Collections.sort(outFileLines);
+        Collections.sort(expectedLines);
+        assertTrue(outFileLines.equals(expectedLines), "AMT flat file content as expected after sorting");
+
+        List<String> replacemenLines = FileUtils.readLines(new File(replacementFile), "UTF-8");
+        List<String> expectedReplacementFileLines = FileUtils.readLines(new File(expectedReplacementFile), "UTF-8");
+        Collections.sort(replacemenLines);
+        Collections.sort(expectedReplacementFileLines);
+        assertTrue(replacemenLines.equals(expectedReplacementFileLines), "Replacements file as expected");
 	}
 }
