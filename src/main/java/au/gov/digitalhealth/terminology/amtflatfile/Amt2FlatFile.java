@@ -396,7 +396,7 @@ public class Amt2FlatFile extends AbstractMojo {
                 }
                 writer.write(
                     String.join(",",
-                        entry.getActiveConcept().getId() + "", "\"" + entry.getActiveConcept().getPreferredTerm() + "\"",
+                        entry.getInactiveConcept().getId() + "", "\"" + entry.getInactiveConcept().getPreferredTerm() + "\"",
                         entry.getReplacementType().getId() + "", "\"" + entry.getReplacementType().getPreferredTerm() + "\"",
                         entry.getActiveConcept().getId() + "", "\"" + entry.getActiveConcept().getPreferredTerm() + "\"", entry.getVersion()));
                 writer.newLine();

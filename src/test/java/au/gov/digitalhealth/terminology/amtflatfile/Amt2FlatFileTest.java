@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,6 +21,13 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+import org.testng.xml.XmlSuite;
+import org.testng.xml.XmlTest;
+import org.testng.xml.internal.Parser;
+import au.gov.digitalhealth.JUnitFileParser;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitFailure;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestCase;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestSuite;
 
 public class Amt2FlatFileTest {
 
@@ -39,30 +47,37 @@ public class Amt2FlatFileTest {
         }
 	}
 	
-//	@Test(groups="files", priority = 1, description = "Tests that the JUnit file gets generated")
-//	public void JUnitGenerated() throws MojoExecutionException, MojoFailureException, IOException {
-//	    Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
-//        amt2FlatFile.setInputZipFilePath("target/test-classes/rf2-fails-flat-file-generation-1.0.zip");
-//        amt2FlatFile.setOutputFilePath(outFile);
-//		amt2FlatFile.execute();
-//		File validXml = new File("target/ValidationErrors.xml");
-//		Assert.assertTrue(validXml.exists());
-//	}
-//
-//	@Test(groups="files", priority = 1, description = "Tests that the the correct errors are reported by the JUnit xml")
-//	public void JUnitContainsCorrectErrors() throws MojoExecutionException, MojoFailureException, IOException, XMLStreamException {
-//		Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
-//		amt2FlatFile.setInputZipFilePath("target/test-classes/rf2-fails-flat-file-generation-1.0.zip");
-//		amt2FlatFile.setOutputFilePath(outFile);
-//        amt2FlatFile.setJunitFilePath("target/JUnitContainsCorrectErrors.xml");
-//		amt2FlatFile.execute();
-//        File validXml = new File("target/JUnitContainsCorrectErrors.xml");
-////		JUnitTestSuite info = JUnitMarshalling.unmarshalTestSuite(new FileInputStream(validXml));
-////		List<String> failures = info.getTestCases().stream().flatMap(aCase -> aCase.getFailures().stream().map(fail -> fail.getValue())).collect(Collectors.toList());
-////		Assert.assertTrue(failures.stream().anyMatch(fail -> fail.contains("1212261000168108")));
-////		Assert.assertTrue(failures.stream().anyMatch(fail -> fail.contains("1209811000168100")));
-////        Assert.assertEquals(failures.size(), 10);
-//	}
+	@Test(groups="files", priority = 1, description = "Tests that the JUnit file gets generated")
+	public void JUnitGenerated() throws MojoExecutionException, MojoFailureException, IOException {
+        Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
+        amt2FlatFile.setInputZipFilePath("target/test-classes/rf2-fails-flat-file-generation-1.0.zip");
+        amt2FlatFile.setOutputFilePath(outFile);
+		amt2FlatFile.execute();
+		File validXml = new File("target/ValidationErrors.xml");
+		Assert.assertTrue(validXml.exists());
+	}
+
+	@Test(groups="files", priority = 1, description = "Tests that the the correct errors are reported by the JUnit xml")
+	public void JUnitContainsCorrectErrors() throws MojoExecutionException, MojoFailureException, IOException, XMLStreamException {
+        Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
+        amt2FlatFile.setInputZipFilePath("target/test-classes/rf2-fails-flat-file-generation-1.0.zip");
+        amt2FlatFile.setOutputFilePath(outFile);
+        amt2FlatFile.setJunitFilePath("target/JUnitContainsCorrectErrors.xml");
+        amt2FlatFile.execute();
+        List<JUnitTestCase> testCases = JUnitFileParser.parse(new File("target/JUnitContainsCorrectErrors.xml"));
+        List<String> fails = new ArrayList<>();
+        testCases.forEach(testCase -> {
+            List<JUnitFailure> failures = testCase.getFailures();
+            fails.addAll(
+                failures.stream()
+                    .map(fail -> fail.getValue())
+                    .collect(Collectors.toList()));
+        });
+        // List<String> failures = testCases.stream().flatMap(aCase -> aCase.getFailures().stream().map(fail -> fail.getValue())).collect(Collectors.toList());
+        Assert.assertTrue(fails.stream().anyMatch(fail -> fail.contains("1212261000168108")));
+        Assert.assertTrue(fails.stream().anyMatch(fail -> fail.contains("1209811000168100")));
+        Assert.assertEquals(fails.size(), 10);
+	}
 	
 	
     @Test(groups = "files", priority = 1, description = "An exception is thrown when the provided input zip file doesn't exist", expectedExceptions = IllegalArgumentException.class)
@@ -84,17 +99,17 @@ public class Amt2FlatFileTest {
 		amt2FlatFile.execute();
 	}
 
-//	@Test(groups="parse", priority = 2, description = "The output file should match the expected result. Test line by line, regardless fo order")
-//	public void outputMatchesExpectedImproved() throws MojoExecutionException, MojoFailureException, IOException, NoSuchAlgorithmException {
-//
-//        Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
-//		amt2FlatFile.setInputZipFilePath(inFile);
-//		amt2FlatFile.setOutputFilePath(outFile);
-//        amt2FlatFile.setReplacementsFilePath(replacementFile);
-//		amt2FlatFile.execute();
-//
-//        assertTrue(FileUtils.contentEqualsIgnoreEOL(new File(outFile), new File(expectedFile), null), "AMT flat file content as expected");
-//        assertTrue(FileUtils.contentEqualsIgnoreEOL(new File(replacementFile), new File(expectedReplacementFile), null),
-//            "Replacements file as expected");
-//	}
+	@Test(groups="parse", priority = 2, description = "The output file should match the expected result. Test line by line, regardless fo order")
+	public void outputMatchesExpectedImproved() throws MojoExecutionException, MojoFailureException, IOException, NoSuchAlgorithmException {
+
+       Amt2FlatFile amt2FlatFile = new Amt2FlatFile();
+		amt2FlatFile.setInputZipFilePath(inFile);
+		amt2FlatFile.setOutputFilePath(outFile);
+       amt2FlatFile.setReplacementsFilePath(replacementFile);
+		amt2FlatFile.execute();
+
+       assertTrue(FileUtils.contentEqualsIgnoreEOL(new File(outFile), new File(expectedFile), null), "AMT flat file content as expected");
+       assertTrue(FileUtils.contentEqualsIgnoreEOL(new File(replacementFile), new File(expectedReplacementFile), null),
+           "Replacements file as expected");
+	}
 }
