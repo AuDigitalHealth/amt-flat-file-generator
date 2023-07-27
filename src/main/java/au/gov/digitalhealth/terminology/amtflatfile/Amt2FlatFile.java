@@ -190,6 +190,11 @@ public class Amt2FlatFile extends AbstractMojo {
 			if (junitFilePath == null || junitFilePath.trim().isEmpty()) {
 				junitFilePath = "target/ValidationErrors.xml";
 			}
+            File junitFile = new File(junitFilePath);
+            File parentDir = junitFile.getParentFile();
+            if (!parentDir.exists()) {
+              parentDir.mkdirs();
+            }
 			BufferedWriter outputJunitXml = new BufferedWriter(new FileWriter(junitFilePath));
 			testSuite.writeToFile(outputJunitXml);
 			logger.info("Output junit results to: " + new File(junitFilePath).getAbsolutePath());
