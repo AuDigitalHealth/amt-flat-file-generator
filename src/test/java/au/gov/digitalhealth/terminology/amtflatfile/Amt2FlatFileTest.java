@@ -68,7 +68,7 @@ public class Amt2FlatFileTest {
         });
         Assert.assertTrue(fails.stream().anyMatch(fail -> fail.contains("1212261000168108")));
         Assert.assertTrue(fails.stream().anyMatch(fail -> fail.contains("1209811000168100")));
-        Assert.assertEquals(fails.size(), 10);
+        Assert.assertEquals(fails.size(), 11);
 	}
 	
 	

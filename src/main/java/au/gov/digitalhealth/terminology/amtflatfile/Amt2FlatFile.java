@@ -192,7 +192,7 @@ public class Amt2FlatFile extends AbstractMojo {
 			}
             File junitFile = new File(junitFilePath);
             File parentDir = junitFile.getParentFile();
-            if (!parentDir.exists()) {
+            if (parentDir != null && !parentDir.exists()) {
               parentDir.mkdirs();
             }
 			BufferedWriter outputJunitXml = new BufferedWriter(new FileWriter(junitFilePath));
@@ -303,7 +303,7 @@ public class Amt2FlatFile extends AbstractMojo {
 
                 Set<Concept> addedMpuus = new HashSet<>();
                 for (Concept tpuu : tpuus) {
-                    Concept tpuuTp = getParent(AmtRefset.TP, tpuu);
+                    Concept tpuuTp = conceptCache.isAmtV3() ? getParent(AmtRefset.TP, tpuu) : null;
                     if (tpuuTp == null) {
                         if (tpuu.getTps().size() > 1) {
                             throw new RuntimeException("TPUU " + tpuu + " has too many TPs " + tpuu.getTps());
@@ -311,6 +311,8 @@ public class Amt2FlatFile extends AbstractMojo {
                             tpuuTp = tpuu.getTps().iterator().next();
                         } else {
                             logger.severe("TPUU " + tpuu + " has no TPs");
+                            testSuite.addTestCase("TPUU error", "TPUU has no TPs " + tpuu,
+                                this.getClass().getName(), "TPUU has no TPs (" + tpuu.getId() + ")", "ERROR");
                         }
                     }
                     Concept mpuu = getParent(AmtRefset.MPUU, tpuu);

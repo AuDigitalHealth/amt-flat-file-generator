@@ -93,6 +93,13 @@ public class AmtCache {
 
     private Map<AmtRefset, Map<Long, Concept>> conceptMaps = new HashMap<>();
 
+    private boolean amtV3 = false;
+
+    public boolean isAmtV3() {
+        return amtV3;
+    }
+
+
     public Map<String, Map<Long, Concept>> getAmtRefsets() {
         return amtRefsets;
     }
@@ -119,11 +126,22 @@ public class AmtCache {
         readFile(visitor.getLanguageRefsetFile(), s -> handleLanguageRefsetRow(s), true, "\t");
         readFile(visitor.getDescriptionFile(), s -> handleDescriptionRow(s), true, "\t");
         readFile(visitor.getArtgIdRefsetFile(), s -> handleArtgIdRefsetRow(s), true, "\t");
+        int refsetFileCount = 0;
         for (Path amtRefsetFile : visitor.getAMTRefsetFiles()) {
             readFile(amtRefsetFile, s -> handleAMTRefsetRow(s), true, "\t");
+            refsetFileCount++;
+        }
+        if (refsetFileCount > 1) {
+            this.amtV3 = true;
         }
         for (Path historicalFile : visitor.getHistoricalAssociationRefsetFiles()) {
             readFile(historicalFile, s -> handleHistoricalAssociationRefsetRow(s), true, "\t");
+        }
+
+        if (this.isAmtV3()) {
+            logger.info("######### Working with AMT V3 Release #########");
+        } else {
+            logger.info("######### Working with AMT V4 Release #########");
         }
 
         try {
