@@ -45,7 +45,7 @@ import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestSuite;
 @Mojo(name = "amt-to-flat-file")
 public class Amt2FlatFile extends AbstractMojo {
 
-    private static final int MAX_ZIP_FILE_SIZE = 900000000;
+    private static final int MAX_ZIP_FILE_SIZE = 1500000000;
 
     private static final String INPUT_FILE_OPTION = "i";
 
@@ -245,7 +245,7 @@ public class Amt2FlatFile extends AbstractMojo {
             if (!attr.isRegularFile()) {
                 throw new SecurityException("The input ZIP file must be a regular file");
             } else if (attr.size() > MAX_ZIP_FILE_SIZE) {
-                throw new SecurityException("For security, input ZIP files over 900M are not accepted. "
+                throw new SecurityException("For security, input ZIP files over 1.5GB are not accepted. "
                         + "This should permit RF2 ALL or SNAPSHOT bundles requiring the required files - file size was "
                         + attr.size());
             } else if (!tika.detect(path).equals("application/zip") && !tika.detect(path).equals("application/java-archive")) {
