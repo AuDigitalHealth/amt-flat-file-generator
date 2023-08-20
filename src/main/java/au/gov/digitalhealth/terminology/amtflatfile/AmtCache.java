@@ -420,7 +420,7 @@ public class AmtCache {
     private void handleArtgIdRefsetRow(String[] row) {
         try {
             long conceptId = Long.parseLong(row[5]);
-            if (isActive(row) && isAmtModule(row)) {
+            if (isActive(row) && (isAmtModule(row) || isAuModule(row))) {
                 conceptCache.get(conceptId).addArtgIds(row[6]);
             }
         } catch (Exception e) {
@@ -431,7 +431,7 @@ public class AmtCache {
     private void handleAMTRefsetRow(String[] row) {
         try {
             long conceptId = Long.parseLong(row[5]);
-            if (isActive(row) && isAmtModule(row)) {
+            if (isActive(row) && (isAmtModule(row) || isAuModule(row))) {
                 String refsetId = row[4];
                 AmtConcept v3Concept = amtRefsetToV3Concept.get(refsetId);
                 if (v3Concept != null) {
@@ -447,7 +447,7 @@ public class AmtCache {
 
     private void handleHistoricalAssociationRefsetRow(String[] row) {
         try {
-            if (isActive(row) && isAmtModule(row) && !isDescriptionId(row[5]) && HISTORICAL_ASSOCAITION_IDS.contains(row[4])) {
+            if (isActive(row) && (isAmtModule(row) || isAuModule(row)) && !isDescriptionId(row[5]) && HISTORICAL_ASSOCAITION_IDS.contains(row[4])) {
                 Concept replacementType = conceptCache.get(Long.parseLong(row[4]));
                 Concept inactiveConcept = conceptCache.get(Long.parseLong(row[5]));
                 Concept replacementConcept = conceptCache.get(Long.parseLong(row[6]));
