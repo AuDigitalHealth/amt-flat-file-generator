@@ -18,8 +18,9 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
     private static final int MAX_FILE_SIZE = 1000000000;
 
-    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile, medicinalProductRefsetFile;
+    private Path conceptFile, relationshipFile, descriptionFile, languageRefsetFile, artgIdRefsetFile;
     private List<Path> historicalAssociationRefsetFiles = new ArrayList<>();
+    private List<Path> AMTRefsetFiles = new ArrayList<>();
 
     private Tika tika = new Tika();
 
@@ -83,9 +84,37 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
                 if (verifyFile(file)) {
                     historicalAssociationRefsetFiles.add(file);
                 }
-            } else if (fileName.matches("der2_Refset_MedicinalProductSnapshot_AU1000036_\\d{8}\\.txt") || fileName.matches("der2_Refset_SimpleSnapshot_AU1000036_\\d{8}\\.txt")) {
+            } else if (fileName.matches("der2_Refset_SimpleSnapshot_AU1000036_\\d{8}\\.txt")) {
                 if (verifyFile(file)) {
-                    medicinalProductRefsetFile = file;
+                    AMTRefsetFiles.add(file);
+                }
+            } else if (fileName.matches("der2_Refset_MedicinalProductPackSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    AMTRefsetFiles.add(file);
+                }
+            } else if (fileName.matches("der2_Refset_MedicinalProductSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    AMTRefsetFiles.add(file);
+                }
+            } else if (fileName.matches("der2_Refset_MedicinalProductUnitOfUseSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    AMTRefsetFiles.add(file);
+                }
+            } else if (fileName.matches("der2_Refset_ContaineredTradeProductPackSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    AMTRefsetFiles.add(file);
+                }
+            } else if (fileName.matches("der2_Refset_TradeProductPackSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    AMTRefsetFiles.add(file);
+                }
+            } else if (fileName.matches("der2_Refset_TradeProductSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    AMTRefsetFiles.add(file);
+                }
+            } else if (fileName.matches("der2_Refset_TradeProductUnitOfUseSnapshot_AU1000036_\\d{8}\\.txt")) {
+                if (verifyFile(file)) {
+                    AMTRefsetFiles.add(file);
                 }
             }
         }
@@ -126,9 +155,10 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
         return artgIdRefsetFile;
     }
 
-    public Path getMedicinalProductRefsetFile() {
-        return medicinalProductRefsetFile;
+    public List<Path> getAMTRefsetFiles() {
+        return AMTRefsetFiles;
     }
+
 
     public List<Path> getHistoricalAssociationRefsetFiles() {
         return historicalAssociationRefsetFiles;

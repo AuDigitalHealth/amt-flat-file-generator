@@ -1,0 +1,26 @@
+trigger:
+  branches:
+    include:
+      - '*'
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+- task: MavenAuthenticate@0
+  inputs:
+    artifactsFeeds: 'amtv4'
+
+- task: Maven@3
+  displayName: Build and Deploy on NCTS Devops
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx3072m'
+    options: '-B'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.11'
+    jdkArchitectureOption: 'x64'
+    publishJUnitResults: false
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    mavenAuthenticateFeed: true
+    goals: 'deploy'

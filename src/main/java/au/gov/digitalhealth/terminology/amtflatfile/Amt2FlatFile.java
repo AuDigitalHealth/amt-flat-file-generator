@@ -17,6 +17,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -28,13 +29,13 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.tika.Tika;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestSuite;
 
 /**
  * This is both a Java CLI class compiled into a runnable JAR, and a Maven Mojo to transform a ZIP file of SNOMED CT-AU
@@ -44,7 +45,7 @@ import org.apache.tika.Tika;
 @Mojo(name = "amt-to-flat-file")
 public class Amt2FlatFile extends AbstractMojo {
 
-    private static final int MAX_ZIP_FILE_SIZE = 600000000;
+    private static final int MAX_ZIP_FILE_SIZE = 1500000000;
 
     private static final String INPUT_FILE_OPTION = "i";
 
@@ -58,7 +59,7 @@ public class Amt2FlatFile extends AbstractMojo {
 
 	private static final Logger logger = Logger.getLogger(Amt2FlatFile.class.getCanonicalName());
 
-//	private JUnitTestSuite_EXT testSuite;
+	private JUnitTestSuite testSuite;
 
 	@Parameter(property = "inputZipFilePath", required = true)
 	private String inputZipFilePath;
@@ -176,12 +177,12 @@ public class Amt2FlatFile extends AbstractMojo {
         }
 
 		//initialise test suite	
-//		this.testSuite = new JUnitTestSuite_EXT();
+		this.testSuite = new JUnitTestSuite();
         try (FileSystem zipFileSystem = FileSystems.newFileSystem(URI.create(
             "jar:file:" + FileSystems.getDefault().getPath(inputZipFilePath).toAbsolutePath().toString()),
                     new HashMap<>());) {
 
-            conceptCache = new AmtCache(zipFileSystem, exitOnError);
+            conceptCache = new AmtCache(zipFileSystem, exitOnError, testSuite);
             writeFlatFile(FileSystems.getDefault().getPath(outputFilePath));
             if (replacementsOutputFilePath != null && !replacementsOutputFilePath.isEmpty()) {
                 writeReplacementsFile(FileSystems.getDefault().getPath(replacementsOutputFilePath));
@@ -189,8 +190,13 @@ public class Amt2FlatFile extends AbstractMojo {
 			if (junitFilePath == null || junitFilePath.trim().isEmpty()) {
 				junitFilePath = "target/ValidationErrors.xml";
 			}
+            File junitFile = new File(junitFilePath);
+            File parentDir = junitFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+              parentDir.mkdirs();
+            }
 			BufferedWriter outputJunitXml = new BufferedWriter(new FileWriter(junitFilePath));
-//			testSuite.writeToFile(outputJunitXml);
+			testSuite.writeToFile(outputJunitXml);
 			logger.info("Output junit results to: " + new File(junitFilePath).getAbsolutePath());
 		} catch (IOException e) {
 			throw new MojoExecutionException("Failed due to IO error executing transformation", e);
@@ -239,11 +245,12 @@ public class Amt2FlatFile extends AbstractMojo {
             if (!attr.isRegularFile()) {
                 throw new SecurityException("The input ZIP file must be a regular file");
             } else if (attr.size() > MAX_ZIP_FILE_SIZE) {
-                throw new SecurityException("For security, input ZIP files over 600M are not accepted. "
-                        + "This should permit RF2 ALL or SNAPSHOT bundles requiring the required files");
-            } else if (!tika.detect(path).equals("application/zip")) {
+                throw new SecurityException("For security, input ZIP files over 1.5GB are not accepted. "
+                        + "This should permit RF2 ALL or SNAPSHOT bundles requiring the required files - file size was "
+                        + attr.size());
+            } else if (!tika.detect(path).equals("application/zip") && !tika.detect(path).equals("application/java-archive")) {
                 throw new SecurityException(
-                    "TThe input ZIP file " + inputZipFilePath + " is not a zip file as expected, detected type was "
+                    "The input ZIP file " + inputZipFilePath + " is not a zip file as expected, detected type was "
                             + tika.detect(path));
             }
         } catch (IOException e) {
@@ -265,8 +272,12 @@ public class Amt2FlatFile extends AbstractMojo {
                     "MPUU PT", "MP SCTID", "MP PT"));
             writer.newLine();
 
-            for (Concept ctpp : conceptCache.getCtpps().values()) {
-                Concept tpp = getParent(AmtConcept.TPP, AmtConcept.CTPP, ctpp);
+            int count = 1;
+            int ctppCount = conceptCache.getCtppsFromRefset().values().size();
+            long startTime = System.currentTimeMillis();
+            for (Concept ctpp : conceptCache.getCtppsFromRefset().values()) {
+                // TPPs
+                Concept tpp = getParent(AmtRefset.TPP, ctpp);
                 if (tpp == null) {
                     tpp = ctpp;
                 }
@@ -274,8 +285,8 @@ public class Amt2FlatFile extends AbstractMojo {
                 if (tpp.getTps().size() == 1) {
                     tppTp = tpp.getTps().iterator().next();
                 } else {
-                	String message = "TPUU " + tpp + " has too many TPs " + tpp.getTps();
-//                    testSuite.addTestCase("TPUU error", message, "TPUU has too many TPs (" + tpp + ")", "ERROR");
+                	String message = "TPP " + tpp + " has too many TPs " + tpp.getTps();
+                    testSuite.addTestCase("TPP error", message, this.getClass().getName(), "TPP has too many TPs (" + tpp + ")", "ERROR");
                     if (exitOnError) {
                 		throw new RuntimeException(message);
                     }
@@ -283,20 +294,17 @@ public class Amt2FlatFile extends AbstractMojo {
                 	continue;
                 }
                 
-                Concept mpp = getParent(AmtConcept.MPP, AmtConcept.TPP, tpp);
+                Concept mpp = getParent(AmtRefset.MPP, tpp);
                 if (mpp == null) {
-                    mpp = getParent(AmtConcept.INT_MPP, AmtConcept.TPP, tpp);
-                    if (mpp == null) {
-                        logger.severe("No MPP found for TPP " + tpp);
-                    }
+                    logger.severe("No MPP found for TPP " + tpp);
                 }
-                Set<Concept> tpuus = tpp.getUnits();
 
-                logger.info("tpuus: " + tpuus.size());
+                // TPUUS
+                Set<Concept> tpuus = tpp.getUnits();
 
                 Set<Concept> addedMpuus = new HashSet<>();
                 for (Concept tpuu : tpuus) {
-                    Concept tpuuTp = getParent(AmtConcept.TP, AmtConcept.TPUU, tpuu);
+                    Concept tpuuTp = conceptCache.isAmtV3() ? getParent(AmtRefset.TP, tpuu) : null;
                     if (tpuuTp == null) {
                         if (tpuu.getTps().size() > 1) {
                             throw new RuntimeException("TPUU " + tpuu + " has too many TPs " + tpuu.getTps());
@@ -304,15 +312,17 @@ public class Amt2FlatFile extends AbstractMojo {
                             tpuuTp = tpuu.getTps().iterator().next();
                         } else {
                             logger.severe("TPUU " + tpuu + " has no TPs");
+                            testSuite.addTestCase("TPUU error", "TPUU has no TPs " + tpuu,
+                                this.getClass().getName(), "TPUU has no TPs (" + tpuu.getId() + ")", "ERROR");
                         }
                     }
-                    Concept mpuu = getParent(AmtConcept.MPUU, AmtConcept.TPUU, tpuu);
+                    Concept mpuu = getParent(AmtRefset.MPUU, tpuu);
                     if (mpuu == null) {
                         throw new RuntimeException("TPUU " + tpuu + " has no MPUU");
                     }
                     addedMpuus.add(mpuu);
 
-                    Set<Concept> mps = getParents(AmtConcept.MP, mpuu);
+                    Set<Concept> mps = getParents(AmtRefset.MP, mpuu);
 
                     Set<String> artgids = ctpp.getArtgIds();
                     if (artgids == null || artgids.size() == 0) {
@@ -352,12 +362,29 @@ public class Amt2FlatFile extends AbstractMojo {
                             + " for MPP " + mpp;
                 	logger.warning(message);
 
-//                    testSuite.addTestCase("Mismatch", message, "MPP mismatch (" + mpp.getId() + ")", "ERROR");
+                    testSuite.addTestCase("Mismatch", message, this.getClass().getName(), "MPP mismatch (" + mpp.getId() + ")", "ERROR");
                 }
+
+                if ( count % 10000 == 0) {
+                    long endTime = System.currentTimeMillis();
+                    logger.info("Processed CTPP [" + count + " of " + ctppCount + "] Time spent processing 10000 CTPPs is " + (endTime - startTime) + "ms");
+                    startTime = System.currentTimeMillis();
+                }
+                count++;
             }
         }
 	}
 
+    private Set<Concept> memberOf(Set<Concept> concepts, AmtRefset refset) {
+        Set<Concept> refsetMembers = new HashSet<>();
+        Map<Long, Concept> refsetConcepts = conceptCache.getAmtRefsets().get(refset.getIdString());
+        for (Concept concept : concepts) {
+            if (refsetConcepts.containsKey(concept.getId())) {
+                refsetMembers.add(concept);
+            }
+        }
+        return refsetMembers;
+    }
 
     private void writeReplacementsFile(Path path) throws IOException {
         if (path.getParent() != null && !Files.exists(path.getParent())) {
@@ -377,7 +404,7 @@ public class Amt2FlatFile extends AbstractMojo {
                 }
                 writer.write(
                     String.join(",",
-                        entry.getActiveConcept().getId() + "", "\"" + entry.getActiveConcept().getPreferredTerm() + "\"",
+                        entry.getInactiveConcept().getId() + "", "\"" + entry.getInactiveConcept().getPreferredTerm() + "\"",
                         entry.getReplacementType().getId() + "", "\"" + entry.getReplacementType().getPreferredTerm() + "\"",
                         entry.getActiveConcept().getId() + "", "\"" + entry.getActiveConcept().getPreferredTerm() + "\"", entry.getVersion()));
                 writer.newLine();
@@ -385,14 +412,12 @@ public class Amt2FlatFile extends AbstractMojo {
         }
     }
 
-
-	private Concept getParent(AmtConcept parentType, AmtConcept current, Concept concept) {
-		Set<Concept> parents = getParents(parentType, current, concept).stream()
-				.collect(Collectors.toSet());
+    private Concept getParent(AmtRefset parentType, Concept concept) {
+		Set<Concept> parents = getParents(parentType, concept);
 		
 		if (parents.size() != 1) {
 			String message = "Expected 1 parent of type " + parentType + " for concept " + concept + " but got " + parents;
-//            testSuite.addTestCase("multiple parents", message, "Multiple parents (" + concept.getId() + ")", "ERROR");
+            testSuite.addTestCase("multiple parents", message, this.getClass().getName(), "Multiple parents (" + concept.getId() + ")", "ERROR");
 			
             if (exitOnError) {
 				throw new RuntimeException(message);
@@ -400,12 +425,13 @@ public class Amt2FlatFile extends AbstractMojo {
 			return null;
 		}
 		return parents.iterator().next();
-	}
+    }
 
-    private Set<Concept> getParents(AmtConcept parentType, Concept concept) {
+    private Set<Concept> getParents(AmtRefset parentType, Concept concept) {
         Set<Concept> leafParents = new HashSet<>();
 
-        leafParents.addAll(concept.getAncestors().stream().filter(p -> p.getType() != null && p.getType().equals(parentType)).collect(Collectors.toSet()));
+        leafParents.addAll(concept.getAncestors().stream().collect(Collectors.toSet()));
+        leafParents = memberOf(leafParents, parentType);
 
         Set<Concept> redunantAncestors =
                 leafParents.stream().flatMap(p -> p.getAncestors().stream()).collect(Collectors.toSet());
@@ -414,28 +440,6 @@ public class Amt2FlatFile extends AbstractMojo {
 
         return leafParents;
     }
-
-	private Set<Concept> getParents(AmtConcept parentType, AmtConcept current, Concept concept) {
-		return getParents(parentType, current, Collections.singleton(concept));
-	}
-
-	private Set<Concept> getParents(AmtConcept parentType, AmtConcept current, Set<Concept> concepts) {
-		Set<Concept> leafParents = new HashSet<>();
-
-		leafParents.addAll(concepts.stream()
-				.flatMap(c -> c.getAncestors(parentType).stream())
-				.filter(p -> !AmtConcept.isEnumValue(p.getId()))
-				.filter(p -> p.hasAtLeastOneMatchingAncestor(parentType))
-				.filter(p -> !p.hasAtLeastOneMatchingAncestor(current))
-				.collect(Collectors.toSet()));
-
-		Set<Concept> redunantAncestors =
-				leafParents.stream().flatMap(p -> p.getAncestors(parentType).stream()).collect(Collectors.toSet());
-
-		leafParents.removeAll(redunantAncestors);
-
-		return leafParents;
-	}
 
 	public String getInputZipFilePath() {
 		return inputZipFilePath;

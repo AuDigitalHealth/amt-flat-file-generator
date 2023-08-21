@@ -12,10 +12,11 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang3.tuple.Triple;
 import org.jgrapht.alg.TransitiveClosure;
 import org.jgrapht.graph.SimpleDirectedGraph;
-//import org.openmbee.junit.model.JUnitFailure;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitFailure;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestCase;
+import au.gov.digitalhealth.terminology.amtflatfile.Junit.JUnitTestSuite;
 
 public class AmtCache {
 
@@ -50,26 +51,69 @@ public class AmtCache {
 
     private Map<Long, Concept> conceptCache = new HashMap<>();
 
-    private Set<Long> preferredDescriptionIdCache = new HashSet<>();
+    public Map<Long, Concept> getConceptCache() {
+        return conceptCache;
+    }
 
-    private Map<Long, Concept> ctpps = new HashMap<>();
+    private Set<Long> preferredDescriptionIdCache = new HashSet<>();
 
     private Set<Replacement> replacements = new HashSet<>();
 
     private boolean exitOnError;
 
-//    private JUnitTestSuite_EXT testSuite;
-//    private JUnitTestCase_EXT graphCase;
+    private JUnitTestSuite testSuite;
+    private JUnitTestCase graphCase;
 
-    public AmtCache(FileSystem amtZip, boolean exitOnError) throws IOException {
-//        this.testSuite = testSuite;
+    private Map<Long, Concept> ctppsFromRefset = new HashMap<>();
+    private Map<Long, Concept> tppsFromRefset = new HashMap<>();
+    private Map<Long, Concept> tpuusFromRefset = new HashMap<>();
+    private Map<Long, Concept> tpsFromRefset = new HashMap<>();
+    private Map<Long, Concept> mppsFromRefset = new HashMap<>();
+    private Map<Long, Concept> mpuusFromRefset = new HashMap<>();
+    private Map<Long, Concept> mpsFromRefset = new HashMap<>();
+    private Map<String,  Map<Long, Concept>> amtRefsets = Map.ofEntries(
+        Map.entry(AmtRefset.CTPP.getIdString(), ctppsFromRefset),
+        Map.entry(AmtRefset.TPP.getIdString(), tppsFromRefset),
+        Map.entry(AmtRefset.TPUU.getIdString(), tpuusFromRefset),
+        Map.entry(AmtRefset.TP.getIdString(), tpsFromRefset),
+        Map.entry(AmtRefset.MPP.getIdString(), mppsFromRefset),
+        Map.entry(AmtRefset.MPUU.getIdString(), mpuusFromRefset),
+        Map.entry(AmtRefset.MP.getIdString(), mpsFromRefset)
+    );
+
+    private static final Map<String, AmtConcept> amtRefsetToV3Concept = Map.ofEntries(
+        Map.entry(AmtRefset.CTPP.getIdString(), AmtConcept.CTPP),
+        Map.entry(AmtRefset.TPP.getIdString(), AmtConcept.TPP),
+        Map.entry(AmtRefset.TPUU.getIdString(), AmtConcept.TPUU),
+        Map.entry(AmtRefset.TP.getIdString(), AmtConcept.TP),
+        Map.entry(AmtRefset.MPP.getIdString(), AmtConcept.MPP),
+        Map.entry(AmtRefset.MPUU.getIdString(), AmtConcept.MPUU),
+        Map.entry(AmtRefset.MP.getIdString(), AmtConcept.MP)
+    );
+
+    private Map<AmtRefset, Map<Long, Concept>> conceptMaps = new HashMap<>();
+
+    private boolean amtV3 = false;
+
+    public boolean isAmtV3() {
+        return amtV3;
+    }
+
+
+    public Map<String, Map<Long, Concept>> getAmtRefsets() {
+        return amtRefsets;
+    }
+
+
+    public AmtCache(FileSystem amtZip, boolean exitOnError, JUnitTestSuite testSuite) throws IOException {
+        this.testSuite = testSuite;
         this.exitOnError = exitOnError;
         processAmtFiles(amtZip);
     }
 
     private void processAmtFiles(FileSystem amtZip) throws IOException {
 
-//        graphCase = new JUnitTestCase_EXT().setName("Graph errors");
+        graphCase = new JUnitTestCase().setName("Graph errors");
 
         TerminologyFileVisitor visitor = new TerminologyFileVisitor();
 
@@ -82,36 +126,43 @@ public class AmtCache {
         readFile(visitor.getLanguageRefsetFile(), s -> handleLanguageRefsetRow(s), true, "\t");
         readFile(visitor.getDescriptionFile(), s -> handleDescriptionRow(s), true, "\t");
         readFile(visitor.getArtgIdRefsetFile(), s -> handleArtgIdRefsetRow(s), true, "\t");
-        readFile(visitor.getMedicinalProductRefsetFile(), s -> handleMedicinalProductRefsetRow(s), true, "\t");
+        int refsetFileCount = 0;
+        for (Path amtRefsetFile : visitor.getAMTRefsetFiles()) {
+            readFile(amtRefsetFile, s -> handleAMTRefsetRow(s), true, "\t");
+            refsetFileCount++;
+        }
+        if (refsetFileCount > 1) {
+            this.amtV3 = true;
+        }
         for (Path historicalFile : visitor.getHistoricalAssociationRefsetFiles()) {
             readFile(historicalFile, s -> handleHistoricalAssociationRefsetRow(s), true, "\t");
+        }
+
+        if (this.isAmtV3()) {
+            logger.info("######### Working with AMT V3 Release #########");
+        } else {
+            logger.info("######### Working with AMT V4 Release #########");
         }
 
         try {
             calculateTransitiveClosure();
         } catch (Exception e) {
             String message = "Could not close graph. Elements missing";
-//            JUnitFailure fail = new JUnitFailure();
-//            fail.setMessage(message);
-//            graphCase.addFailure(fail);
+            JUnitFailure fail = new JUnitFailure();
+            fail.setMessage(message);
+            graphCase.addFailure(fail);
             if (exitOnError) {
                 throw new RuntimeException(message);
             }
         }
 
-        graph.incomingEdgesOf(AmtConcept.CTPP.getId())
-            .stream()
-            .map(e -> e.getSource())
-            .filter(id -> !AmtConcept.isEnumValue(Long.toString(id)))
-            .forEach(id -> ctpps.put(id, conceptCache.get(id)));
-
-        Iterator<Entry<Long, Concept>> it = ctpps.entrySet().iterator();
+        Iterator<Entry<Long, Concept>> it = ctppsFromRefset.entrySet().iterator();
         while (it.hasNext()) {
             Entry<Long, Concept> entry = it.next();
             if (!entry.getValue().isActive()) {
                 String message = "Found inactive CTPP! " + entry.getValue();
                 logger.warning(message);
-//                testSuite.addTestCase("Inactive CTPP found", entry.getValue().toString(), "Inactive_CTPP", "ERROR");
+                testSuite.addTestCase("Inactive CTPP found", entry.getValue().toString(), this.getClass().getName(), "Inactive_CTPP", "ERROR");
                 if (exitOnError) {
                     throw new RuntimeException(message);
                 }
@@ -129,7 +180,7 @@ public class AmtCache {
 
         validateConceptCache();
 
-        logger.info("Loaded " + ctpps.size() + " CTPPs " + conceptCache.size() + " concepts ");
+        logger.info("Loaded " + ctppsFromRefset.size() + " CTPPs " + conceptCache.size() + " concepts ");
 
         validateUnits();
 
@@ -179,7 +230,7 @@ public class AmtCache {
 
         if (!errors.isEmpty()) {
             logger.warning(message + " " + errors);
-//            testSuite.addTestCase(message, errors.toString(), testCaseName, "ERROR");
+            testSuite.addTestCase(message, errors.toString(), this.getClass().getName(), testCaseName, "ERROR");
 
             if (exitOnError || fix == null) {
                 throw new RuntimeException(message + " " + errors);
@@ -241,9 +292,9 @@ public class AmtCache {
                     + tppsWithMpuus.stream()
                         .map(c -> c.getId() + " |" + c.getPreferredTerm() + "|\n")
                         .collect(Collectors.toSet());
-//
-//            testSuite.addTestCase("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units",
-//                detail, "heirarchy_error", "ERROR");
+
+            testSuite.addTestCase("Detected pack concepts with no units and/or MPPs with TPUU units and/or TPP/CTPPs with MPUU units",
+                detail, this.getClass().getName(), "heirarchy_error", "ERROR");
 
             if (exitOnError) {
                 throw new RuntimeException(detail);
@@ -251,8 +302,32 @@ public class AmtCache {
         }
     }
 
-    public Map<Long, Concept> getCtpps() {
-        return ctpps;
+    public Map<Long, Concept> getCtppsFromRefset() {
+        return ctppsFromRefset;
+    }
+
+    public Map<Long, Concept> getTppsFromRefset() {
+        return tppsFromRefset;
+    }
+
+    public Map<Long, Concept> getTpuusFromRefset() {
+        return tpuusFromRefset;
+    }
+
+    public Map<Long, Concept> getTpsFromRefset() {
+        return tpsFromRefset;
+    }
+
+    public Map<Long, Concept> getMppsFromRefset() {
+        return mppsFromRefset;
+    }
+
+    public Map<Long, Concept> getMpuusFromRefset() {
+        return mpuusFromRefset;
+    }
+
+    public Map<Long, Concept> getMpsFromRefset() {
+        return mpsFromRefset;
     }
 
     private void handleConceptRow(String[] row) {
@@ -287,6 +362,7 @@ public class AmtCache {
                     case HAS_MPUU:
                     case HAS_TPUU:
                     case CONTAINS_CLINICAL_DRUG:
+                    case CONTAINS_DEVICE:
                         sourceConcept.addUnit(conceptCache.get(destination));
                         break;
 
@@ -344,7 +420,7 @@ public class AmtCache {
     private void handleArtgIdRefsetRow(String[] row) {
         try {
             long conceptId = Long.parseLong(row[5]);
-            if (isActive(row) && isAmtModule(row)) {
+            if (isActive(row) && (isAmtModule(row) || isAuModule(row))) {
                 conceptCache.get(conceptId).addArtgIds(row[6]);
             }
         } catch (Exception e) {
@@ -352,11 +428,17 @@ public class AmtCache {
         }
     }
 
-    private void handleMedicinalProductRefsetRow(String[] row) {
+    private void handleAMTRefsetRow(String[] row) {
         try {
             long conceptId = Long.parseLong(row[5]);
-            if (isActive(row) && isAmtModule(row) && row[4].equals("929360061000036106")) {
-                conceptCache.get(conceptId).setType(AmtConcept.MP);
+            if (isActive(row) && (isAmtModule(row) || isAuModule(row))) {
+                String refsetId = row[4];
+                AmtConcept v3Concept = amtRefsetToV3Concept.get(refsetId);
+                if (v3Concept != null) {
+                    Concept concept = conceptCache.get(conceptId);
+                    concept.setType(v3Concept);
+                    amtRefsets.get(refsetId).put(conceptId, concept);
+                }
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed processing row: " + row + " of ARTG file", e);
@@ -365,7 +447,7 @@ public class AmtCache {
 
     private void handleHistoricalAssociationRefsetRow(String[] row) {
         try {
-            if (isActive(row) && isAmtModule(row) && !isDescriptionId(row[5]) && HISTORICAL_ASSOCAITION_IDS.contains(row[4])) {
+            if (isActive(row) && (isAmtModule(row) || isAuModule(row)) && !isDescriptionId(row[5]) && HISTORICAL_ASSOCAITION_IDS.contains(row[4])) {
                 Concept replacementType = conceptCache.get(Long.parseLong(row[4]));
                 Concept inactiveConcept = conceptCache.get(Long.parseLong(row[5]));
                 Concept replacementConcept = conceptCache.get(Long.parseLong(row[6]));

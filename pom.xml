@@ -4,7 +4,7 @@
 	<groupId>au.gov.digitalhealth.terminology</groupId>
 	<artifactId>amt-to-flat-file</artifactId>
 
-	<version>master-SNAPSHOT</version>
+	<version>amt-v4-SNAPSHOT</version>
 	<name>AMT flat file generator</name>
 	<description>Generates an "AMT Flat File" from a Snapshot SNOMED CT-AU release</description>
 
@@ -17,12 +17,40 @@
 		<url>https://github.com/AuDigitalHealth/amt-flat-file-generator.git</url>
 	</scm>
 
+	<properties>
+		<java.version>11</java.version>
+		<deployment.repo.id>amtv4</deployment.repo.id>
+		<deployment.repo.url>https://pkgs.dev.azure.com/OD225632-NCTS-ContentAndTooling/OD225632-NCTS-ContentAndTooling/_packaging/amtv4/maven/v1</deployment.repo.url>
+	</properties>
+
 	<dependencies>
-<!--		<dependency>-->
-<!--			<groupId>org.openmbee.junit</groupId>-->
-<!--			<artifactId>junit-xml-parser</artifactId>-->
-<!--			<version>1.0.0</version>-->
-<!--		</dependency>-->
+		<dependency>
+			<groupId>jakarta.xml.bind</groupId>
+			<artifactId>jakarta.xml.bind-api</artifactId>
+			<version>4.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.sun.xml.bind</groupId>
+			<artifactId>jaxb-impl</artifactId>
+			<version>4.0.0</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.28</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.13.2</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.13.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.maven</groupId>
 			<artifactId>maven-plugin-api</artifactId>
@@ -76,8 +104,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.7.0</version>
 				<configuration>
-					<source>9</source>
-					<target>9</target>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -151,14 +179,48 @@
 	</build>
 
 	<repositories>
-<!--		<repository>-->
-<!--			<id>Spring Lib Release</id>-->
-<!--			<name>Spring Lib Release</name>-->
-<!--			<url>https://repo.spring.io/libs-release/</url>-->
-<!--		</repository>-->
 		<repository>
 			<id>spring-releases</id>
 			<url>https://repo.spring.io/release</url>
 		</repository>
+		<repository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
 	</repositories>
+	<pluginRepositories>
+		<pluginRepository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</pluginRepository>
+	</pluginRepositories>
+	<distributionManagement>
+		<repository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<name>Maven Release Feed</name>
+			<layout>default</layout>
+			<uniqueVersion>true</uniqueVersion>
+		</repository>
+		<snapshotRepository>
+			<id>${deployment.repo.id}</id>
+			<url>${deployment.repo.url}</url>
+			<name>Maven Snapshot Release Feed</name>
+			<layout>default</layout>
+			<uniqueVersion>true</uniqueVersion>
+		</snapshotRepository>
+	</distributionManagement>
+
 </project>
