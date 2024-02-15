@@ -36,11 +36,11 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
                 if (verifyFile(file)) {
                     relationshipFile = file;
                 }
-            } else if (fileName.matches("sct2_Description_Snapshot-en-AU_AU1000036_\\d{8}\\.txt")) {
+            } else if (fileName.matches("sct2_Description_Snapshot-en-[Aa][Uu]_AU1000036_\\d{8}\\.txt")) {
                 if (verifyFile(file)) {
                     descriptionFile = file;
                 }
-            } else if (fileName.matches("der2_cRefset_LanguageSnapshot-en-AU_AU1000036_\\d{8}\\.txt")) {
+            } else if (fileName.matches("der2_cRefset_LanguageSnapshot-en-[Aa][Uu]_AU1000036_\\d{8}\\.txt")) {
                 if (verifyFile(file)) {
                     languageRefsetFile = file;
                 }
