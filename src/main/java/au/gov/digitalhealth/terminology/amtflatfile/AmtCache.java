@@ -338,7 +338,7 @@ public class AmtCache {
                 conceptCache.put(conceptId, new Concept(conceptId, isActive(row)));
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed processing row: " + row + " of Concepts file", e);
+            throw new RuntimeException("Failed processing row: " + String.join(", ",row) + " of Concepts file", e);
         }
     }
 
@@ -357,6 +357,12 @@ public class AmtCache {
                     case IS_A:
                         graph.addEdge(source, destination);
                         sourceConcept.addParent(conceptCache.get(destination));
+                        break;
+
+                    case HAS_INTENDED_ACTIVE_INGREDIENT:
+                    case HAS_ACTIVE_INGREDIENT:
+                    case HAS_PRECISE_ACTIVE_INGREDIENT:
+                        sourceConcept.addIngredient(conceptCache.get(destination));
                         break;
 
                     case HAS_MPUU:
@@ -379,7 +385,7 @@ public class AmtCache {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed processing row: " + row + " of Relationships file", e);
+            throw new RuntimeException("Failed processing row: " + String.join(", ",row) + " of Relationships file", e);
         }
 
     }
@@ -401,7 +407,7 @@ public class AmtCache {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed processing row: " + row + " of Descriptions file", e);
+            throw new RuntimeException("Failed processing row: " + String.join(", ",row) + " of Descriptions file", e);
         }
     }
 
@@ -412,7 +418,7 @@ public class AmtCache {
                 preferredDescriptionIdCache.add(Long.parseLong(row[5]));
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed processing row: " + row + " of Language file", e);
+            throw new RuntimeException("Failed processing row: " + String.join(", ",row) + " of Language file", e);
         }
 
     }
@@ -424,7 +430,7 @@ public class AmtCache {
                 conceptCache.get(conceptId).addArtgIds(row[6]);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed processing row: " + row + " of ARTG file", e);
+            throw new RuntimeException("Failed processing row: " + String.join(", ",row) + " of ARTG file", e);
         }
     }
 
@@ -441,7 +447,7 @@ public class AmtCache {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed processing row: " + row + " of ARTG file", e);
+            throw new RuntimeException("Failed processing row: " + String.join(", ",row) + " of ARTG file", e);
         }
     }
 
@@ -461,7 +467,7 @@ public class AmtCache {
                 replacements.add(new Replacement(inactiveConcept, replacementType, replacementConcept, row[1]));
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed processing row: " + row + " of History file", e);
+            throw new RuntimeException("Failed processing row: " + String.join(", ",row) + " of History file", e);
         }
     }
 

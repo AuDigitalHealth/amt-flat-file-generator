@@ -19,6 +19,7 @@ public class Concept {
     private Map<Long, Concept> parents = new HashMap<>();
     private Map<Long, Concept> ancestors = new HashMap<>();
     private Set<Concept> tps = new HashSet<>();
+    private Set<Concept> ingredients = new HashSet<>();
     private Set<String> artgIds = new HashSet<>();
     private boolean active;
     private AmtConcept type;
@@ -68,6 +69,17 @@ public class Concept {
             return getSubpack().stream().map(Concept::getUnits).flatMap(Set::stream).collect(Collectors.toSet());
         }
         return units;
+    }
+
+    public void addIngredient(Concept concept) {
+        if (ingredients == null) {
+            ingredients = new HashSet<>();
+        }
+        ingredients.add(concept);
+    }
+
+    public Set<Concept> getIngredients() {
+        return ingredients;
     }
 
     public boolean hasOneMatchingParent(AmtConcept... amtConcept) {

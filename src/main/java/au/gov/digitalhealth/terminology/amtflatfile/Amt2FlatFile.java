@@ -324,6 +324,30 @@ public class Amt2FlatFile extends AbstractMojo {
 
                     Set<Concept> mps = getParents(AmtRefset.MP, mpuu);
 
+                    if (mps.size() > 1) {
+                        Set<Concept> filteredMps = mps.stream().max((mp1, mp2) -> mp1.getIngredients().size() > mp2.getIngredients().size() ? 1 : -1).map(Collections::singleton).orElse(mps);
+                        if (filteredMps.size() == 1) {
+                            mps = filteredMps;
+                        } else {
+                            String message = "Expected 1 MP parent for MPUU " + mpuu.getId()
+                                + " but got " + mps.size() + ". Filtering by ingredients yielded "
+                                + filteredMps.size() + " not 1 as required. Full set was "
+                                + mps.stream().map(c -> c.getId() + " | " + c.getPreferredTerm() + " | ").collect(Collectors.joining(", "));
+                            logger.warning(message);
+                            testSuite.addTestCase("multiple parents", message, this.getClass().getName(), "Multiple parents (" + mpuu.getId() + ")", "ERROR");
+                            if (exitOnError) {
+                                throw new RuntimeException(message);
+                            }
+                        }
+                    } else if (mps.isEmpty()){
+                        String message = "No MP parent for MPUU " + mpuu.getId();
+                        logger.warning(message);
+                        testSuite.addTestCase("no parents", message, this.getClass().getName(), "No parents (" + mpuu.getId() + ")", "ERROR");
+                        if (exitOnError) {
+                            throw new RuntimeException(message);
+                        }
+                    }
+
                     Set<String> artgids = ctpp.getArtgIds();
                     if (artgids == null || artgids.size() == 0) {
                         artgids = Collections.singleton("");
