@@ -5,14 +5,14 @@ import java.util.HashMap;
 
 public enum AmtConcept {
     // @formatter:off
-    MP(30497011000036103L, "medicinal product"),
-    MPUU(30450011000036109L, "medicinal product unit of use"),
-    MPP(30513011000036104L, "medicinal product pack"),
-    TP(30560011000036108L, "trade product pack"),
-    TPUU(30425011000036101L, "trade product unit of use"),
-    TPP(30404011000036106L, "trade product pack"),
-    CTPP(30537011000036101L, "containered trade product pack"),
-    SUBSTANCE(30344011000036106L, "Australian substance"),
+    MP(763158003L, "medicinal product"),
+    MPUU(763158003L, "medicinal product unit of use"),
+    MPP(781405001L, "medicinal product package"),
+    TP(774167006L, "product name"),
+    TPUU(763158003L, "trade product unit of use"),
+    TPP(781405001L, "trade product pack"),
+    CTPP(781405001L, "containerized trade product pack"),
+    SUBSTANCE(105590001L, "substance"),
     REPLACED_BY(900000000000526001L, "REPLACED BY"),
     POSSIBLY_EQUIVALENT_TO(900000000000523009L, "POSSIBLY EQUIVALENT TO"),
     SAME_AS(900000000000527005L, "SAME AS");

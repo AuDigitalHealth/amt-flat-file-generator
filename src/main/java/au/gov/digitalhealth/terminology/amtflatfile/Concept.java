@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -13,11 +15,11 @@ public class Concept {
     private long id;
     private String fullSpecifiedName;
     private String preferredTerm;
-    private Set<Concept> units = new HashSet<>();
-    private Map<Long, Concept> parents = new HashMap<>();
-    private Map<Long, Concept> ancestors = new HashMap<>();
-    private Set<Concept> tps = new HashSet<>();
-    private Set<String> artgIds = new HashSet<>();
+    private Set<Concept> units = new LinkedHashSet<>();
+    private Map<Long, Concept> parents = new LinkedHashMap<>();
+    private Map<Long, Concept> ancestors = new LinkedHashMap<>();
+    private Set<Concept> tps = new LinkedHashSet<>();
+    private Set<Long> artgIds = new LinkedHashSet<>();
     private boolean active;
 
     public Concept(long id, boolean active) {
@@ -55,7 +57,7 @@ public class Concept {
 
     public void addUnit(Concept unit) {
         if (units == null) {
-            units = new HashSet<>();
+            units = new LinkedHashSet<>();
         }
         units.add(unit);
     }
@@ -141,7 +143,7 @@ public class Concept {
 
     public void addTp(Concept concept) {
         if (tps == null) {
-            tps = new HashSet<>();
+            tps = new LinkedHashSet<>();
         }
         tps.add(concept);
     }
@@ -150,14 +152,11 @@ public class Concept {
         return tps;
     }
 
-    public void addArtgIds(String row) {
-        if (artgIds == null) {
-            artgIds = new HashSet<>();
-        }
-        artgIds.add(row);
+    public void addArtgId(long artgId) {
+        artgIds.add(artgId);
     }
 
-    public Set<String> getArtgIds() {
+    public Set<Long> getArtgIds() {
         return artgIds;
     }
 

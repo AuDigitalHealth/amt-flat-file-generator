@@ -17,6 +17,9 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -57,6 +60,18 @@ public class Amt2FlatFile extends AbstractMojo {
 	private static final String JUNIT_FILE_PATH = "j";
 
 	private static final Logger logger = Logger.getLogger(Amt2FlatFile.class.getCanonicalName());
+
+    private static final String TPP_REFSET_ID = "929360041000036105";
+
+    private static final String TP_REFSET_ID = "929360021000036102";
+
+    private static final String MPP_REFSET_ID = "929360081000036101";
+
+    private static final String MPUU_REFSET_ID = "929360071000036103";
+
+    private static final String MP_REFSET_ID = "929360061000036106";
+
+    private static final String CSV_EOL = "\r\n";
 
 	private JUnitTestSuite_EXT testSuite;
 
@@ -164,14 +179,10 @@ public class Amt2FlatFile extends AbstractMojo {
         if (exitOnError) {
             logger.info("AMT flat file generation will be aborted if any errors are detected");
         } else {
-            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             logger.warning(
                 "Configured to continue regardless of detected errors. This is useful for testing pre-release AMT content, "
                         + "but is NOT recommended for any other use! Resultant AMT flat file may be unreliable. "
                         + "Consider rerunning with the -e or --exit-on-error flag set!!!");
-            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            logger.warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 
         }
 
@@ -259,70 +270,84 @@ public class Amt2FlatFile extends AbstractMojo {
                 BufferedWriter writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
 
+            List<String[]> outputRows = new ArrayList<>();
+
             writer.write(
                 String.join(",", "CTPP SCTID", "CTPP PT", "ARTG_ID", "TPP SCTID", "TPP PT", "TPUU SCTID", "TPUU PT",
                     "TPP TP SCTID", "TPP TP PT", "TPUU TP SCTID", "TPUU TP PT", "MPP SCTID", "MPP PT", "MPUU SCTID",
                     "MPUU PT", "MP SCTID", "MP PT"));
-            writer.newLine();
+            writer.write(CSV_EOL);
 
             for (Concept ctpp : conceptCache.getCtpps().values()) {
-                Concept tpp = getParent(AmtConcept.TPP, AmtConcept.CTPP, ctpp);
-                Concept tppTp = null;
-                if (tpp.getTps().size() == 1) {
-                    tppTp = tpp.getTps().iterator().next();
-                } else {
-                	String message = "TPUU " + tpp + " has too many TPs " + tpp.getTps();
-                    testSuite.addTestCase("TPUU error", message, "TPUU has too many TPs (" + tpp + ")", "ERROR");
-                    if (exitOnError) {
-                		throw new RuntimeException(message);
-                    }
-                	continue;
+                Concept tpp = getSingleLeafAncestorInRefset(ctpp, TPP_REFSET_ID, "TPP", "CTPP");
+                if (tpp == null) {
+                    continue;
                 }
-                
-                Concept mpp = getParent(AmtConcept.MPP, AmtConcept.TPP, tpp);
-                Set<Concept> tpuus = tpp.getUnits();
+
+                Concept tppTp = getSingleLeafAncestorInRefset(tpp, TP_REFSET_ID, "TP", "TPP");
+                if (tppTp == null) {
+                    tppTp = getSingleTp(tpp, "TPP");
+                }
+                if (tppTp == null) {
+                    continue;
+                }
+
+                Concept mpp = getSingleLeafAncestorInRefset(tpp, MPP_REFSET_ID, "MPP", "TPP");
+                if (mpp == null) {
+                    continue;
+                }
+
+                Set<Concept> tpuus = conceptCache.getContainedTpuus(tpp);
 
                 Set<Concept> addedMpuus = new HashSet<>();
                 for (Concept tpuu : tpuus) {
-                    Concept tpuuTp = getParent(AmtConcept.TP, AmtConcept.TPUU, tpuu);
-                    Concept mpuu = getParent(AmtConcept.MPUU, AmtConcept.TPUU, tpuu);
+                    Concept tpuuTp = getSingleLeafAncestorInRefset(tpuu, TP_REFSET_ID, "TP", "TPUU");
+                    if (tpuuTp == null) {
+                        tpuuTp = getSingleTp(tpuu, "TPUU");
+                    }
+                    Concept mpuu = getSingleLeafAncestorInRefset(tpuu, MPUU_REFSET_ID, "MPUU", "TPUU");
+                    if (tpuuTp == null || mpuu == null) {
+                        continue;
+                    }
+
                     addedMpuus.add(mpuu);
 
-                    Set<Concept> mps = getParents(AmtConcept.MP, AmtConcept.MPUU, mpuu);
-
-                    Set<String> artgids = ctpp.getArtgIds();
-                    if (artgids == null || artgids.size() == 0) {
-                        artgids = Collections.singleton("");
-                    }
-
-                    artgids = artgids.stream().map(String::trim).collect(Collectors.toSet());;
-
-                    if(tpuuTp == null || mpuu == null) {
-                    	continue;
-                    }
-                    
-                    for (Concept mp : mps) {
-                        for (String artgid : artgids) {
-                            writer.write(
-                                String.join(",",
-                                    ctpp.getId() + "", "\"" + ctpp.getPreferredTerm() + "\"",
-                                    artgid,
-                                    tpp.getId() + "", "\"" + tpp.getPreferredTerm() + "\"",
-                                    tpuu.getId() + "", "\"" + tpuu.getPreferredTerm() + "\"",
-                                    tppTp.getId() + "", "\"" + tppTp.getPreferredTerm() + "\"",
-                                    tpuuTp.getId() + "", "\"" + tpuuTp.getPreferredTerm() + "\"",
-                                    mpp.getId() + "", "\"" + mpp.getPreferredTerm() + "\"",
-                                    mpuu.getId() + "", "\"" + mpuu.getPreferredTerm() + "\"",
-                                    mp.getId() + "", "\"" + mp.getPreferredTerm() + "\""));
-                            writer.newLine();
+                    Concept mp = getSingleLeafAncestorInRefset(mpuu, MP_REFSET_ID, "MP", "MPUU");
+                    if (mp == null) {
+                        String message = "No MP ancestor in MP refset found for MPUU " + mpuu;
+                        testSuite.addTestCase("MP ancestor error", message, "Missing MP ancestor (" + mpuu.getId() + ")", "ERROR");
+                        if (exitOnError) {
+                            throw new RuntimeException(message);
                         }
+                        continue;
+                    }
+
+                    Set<Long> artgIds = ctpp.getArtgIds().isEmpty() ? Collections.singleton(null) : ctpp.getArtgIds();
+
+                    for (Long artgId : artgIds) {
+                        outputRows.add(new String[] {
+                            ctpp.getId() + "", "\"" + ctpp.getPreferredTerm() + "\"",
+                            artgId == null ? "" : Long.toString(artgId),
+                            tpp.getId() + "", "\"" + tpp.getPreferredTerm() + "\"",
+                            tpuu.getId() + "", "\"" + tpuu.getPreferredTerm() + "\"",
+                            tppTp.getId() + "", "\"" + tppTp.getPreferredTerm() + "\"",
+                            tpuuTp.getId() + "", "\"" + tpuuTp.getPreferredTerm() + "\"",
+                            mpp.getId() + "", "\"" + mpp.getPreferredTerm() + "\"",
+                            mpuu.getId() + "", "\"" + mpuu.getPreferredTerm() + "\"",
+                            mp.getId() + "", "\"" + mp.getPreferredTerm() + "\""
+                        });
                     }
                 }
 
-                if (!mpp.getUnits().containsAll(addedMpuus) || !addedMpuus.containsAll(mpp.getUnits())) {
+                Set<Concept> mppResolvedMpuus = conceptCache.getContainedMpuus(mpp);
+                if (mppResolvedMpuus.isEmpty() && !mpp.getUnits().isEmpty()) {
+                    mppResolvedMpuus = mpp.getUnits();
+                }
+
+                if (!mppResolvedMpuus.containsAll(addedMpuus) || !addedMpuus.containsAll(mppResolvedMpuus)) {
                     
                 	String message = "Mismatch between MPUUs from MPP "
-                            + mpp.getUnits().stream().map(c -> c.getId()).collect(Collectors.toList())
+                            + mppResolvedMpuus.stream().map(c -> c.getId()).collect(Collectors.toList())
                             + " and MPUUs added from TPUUs "
                             + addedMpuus.stream().map(c -> c.getId()).collect(Collectors.toList())
                             + " for MPP " + mpp;
@@ -331,8 +356,81 @@ public class Amt2FlatFile extends AbstractMojo {
                     testSuite.addTestCase("Mismatch", message, "MPP mismatch (" + mpp.getId() + ")", "ERROR");
                 }
             }
+
+            for (String[] row : outputRows) {
+                writer.write(String.join(",", row));
+                writer.write(CSV_EOL);
+            }
         }
 	}
+
+    private Concept getSingleTp(Concept concept, String conceptLabel) {
+        if (concept.getTps().isEmpty()) {
+            String message = conceptLabel + " " + concept + " has no TP relationship";
+            testSuite.addTestCase(conceptLabel + " TP error", message,
+                conceptLabel + " has no TP (" + concept.getId() + ")", "ERROR");
+            if (exitOnError) {
+                throw new RuntimeException(message);
+            }
+            return null;
+        }
+
+        if (concept.getTps().size() == 1) {
+            return concept.getTps().iterator().next();
+        }
+
+        Concept chosenTp = concept.getTps().stream()
+                .sorted(Comparator
+                        .comparingInt((Concept c) -> c.getPreferredTerm() == null ? 0 : c.getPreferredTerm().length())
+                        .reversed()
+                        .thenComparingLong(Concept::getId))
+                .findFirst()
+                .orElse(null);
+
+        String message = conceptLabel + " " + concept + " has multiple TP relationships " + concept.getTps()
+                + ", selected " + chosenTp;
+        testSuite.addTestCase(conceptLabel + " TP warning", message,
+            conceptLabel + " has multiple TP (" + concept.getId() + ")", "ERROR");
+        if (exitOnError) {
+            throw new RuntimeException(message);
+        }
+        return chosenTp;
+    }
+
+    private Concept getSingleLeafAncestorInRefset(Concept concept, String refsetId, String parentLabel, String currentLabel) {
+        Set<Concept> parents = conceptCache.getLeafAncestorsInRefset(concept.getId(), refsetId);
+        if (parents.size() == 1) {
+            return parents.iterator().next();
+        }
+
+        if (!parents.isEmpty()) {
+            Concept chosenParent = parents.stream()
+                    .sorted(Comparator
+                            .comparingInt((Concept c) -> c.getPreferredTerm() == null ? 0 : c.getPreferredTerm().length())
+                            .reversed()
+                            .thenComparingLong(Concept::getId))
+                    .findFirst()
+                    .orElse(null);
+
+            String warningMessage = "Expected 1 " + parentLabel + " ancestor for " + currentLabel + " concept " + concept
+                    + " but got " + parents + ", selected " + chosenParent;
+            testSuite.addTestCase("multiple parents", warningMessage,
+                "Multiple " + parentLabel + " ancestors (" + concept.getId() + ")", "ERROR");
+            if (exitOnError) {
+                throw new RuntimeException(warningMessage);
+            }
+            return chosenParent;
+        }
+
+        String message = "Expected 1 " + parentLabel + " ancestor for " + currentLabel + " concept " + concept
+                + " but got " + parents;
+        testSuite.addTestCase("missing parent", message,
+            "Missing " + parentLabel + " ancestor (" + concept.getId() + ")", "ERROR");
+        if (exitOnError) {
+            throw new RuntimeException(message);
+        }
+        return null;
+    }
 
 
     private void writeReplacementsFile(Path path) throws IOException {
@@ -346,14 +444,17 @@ public class Amt2FlatFile extends AbstractMojo {
             writer.write(
                 String.join(",", "INACTIVE SCTID", "INACTIVE PT", "REPLACEMENT TYPE SCTID", "REPLACEMENT TYPE PT", "REPLACEMENT SCTID",
                     "REPLACEMENT PT"));
-            writer.newLine();
+            writer.write(CSV_EOL);
             for (Triple<Concept, Concept, Concept> entry : conceptCache.getReplacementConcepts()) {
+                if (entry.getLeft() == null || entry.getMiddle() == null || entry.getRight() == null) {
+                    continue;
+                }
                 writer.write(
                     String.join(",",
                         entry.getLeft().getId() + "", "\"" + entry.getLeft().getPreferredTerm() + "\"",
                         entry.getMiddle().getId() + "", "\"" + entry.getMiddle().getPreferredTerm() + "\"",
                         entry.getRight().getId() + "", "\"" + entry.getRight().getPreferredTerm() + "\""));
-                writer.newLine();
+                writer.write(CSV_EOL);
             }
         }
     }
