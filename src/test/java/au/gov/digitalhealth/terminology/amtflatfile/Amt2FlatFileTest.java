@@ -12,9 +12,14 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.xml.stream.XMLStreamException;
 
@@ -30,14 +35,14 @@ public class Amt2FlatFileTest {
 
 	private static final String INPUT_DIR = "src/test/resources/";
 	
-	//sample v4 files from June 2026 release. should pass with no validation errors
+	// sample v4 files from June 2026 release; generation succeeds but validation summary includes expected failures
 	private static final String SAMPLE_V4_INPUT_ZIP = INPUT_DIR + "sample-v4-release-june-2026.zip";
 	
 	// missing a required file. will fail
-	private static final String INVALID_INPUT_ZIP = INPUT_DIR + "error.zip";
+	private static final String INVALID_INPUT_ZIP = INPUT_DIR + "error-v4.zip";
 		
 	// has all files but missing an optional file. will pass but with validation errors
-	private static final String VALIDATION_INPUT_ZIP = INPUT_DIR + "validation.zip";
+	private static final String VALIDATION_INPUT_ZIP = INPUT_DIR + "validation-v4.zip";
 	
 	// just doesn't exist at all
 	private static final String NON_EXISTENT_INPUT_ZIP = INPUT_DIR + "nonexistent.zip";
@@ -76,7 +81,10 @@ public class Amt2FlatFileTest {
 		File junitXml = new File(VALIDATION_XML_FILE);
 		assertTrue(junitXml.exists(), "Validation JUnit XML should be generated");
 
-		JUnitTestSuite suite = JUnitMarshalling.unmarshalTestSuite(new FileInputStream(junitXml));
+		JUnitTestSuite suite;
+		try (FileInputStream inputStream = new FileInputStream(junitXml)) {
+			suite = JUnitMarshalling.unmarshalTestSuite(inputStream);
+		}
 		Assert.assertNotNull(suite, "Generated JUnit XML should be parseable");
 		Assert.assertNotNull(suite.getTestCases(), "Validation fixture report should contain a test case collection");
 	}
@@ -127,7 +135,10 @@ public class Amt2FlatFileTest {
 	}
 
 	private List<String> buildValidationSummary(String validationXmlPath) throws IOException, XMLStreamException {
-		JUnitTestSuite suite = JUnitMarshalling.unmarshalTestSuite(new FileInputStream(new File(validationXmlPath)));
+		JUnitTestSuite suite;
+		try (FileInputStream inputStream = new FileInputStream(new File(validationXmlPath))) {
+			suite = JUnitMarshalling.unmarshalTestSuite(inputStream);
+		}
 		List<String> lines = new ArrayList<>();
 		int tests = suite.getTestCases() == null ? 0 : suite.getTestCases().size();
 		int failures = suite.getTestCases() == null ? 0
@@ -176,19 +187,34 @@ public class Amt2FlatFileTest {
 	}
 
 	private void assertCsvDataEquivalent(String expectedPath, String actualPath) throws IOException {
-		List<String> expectedLines = Files.readAllLines(Paths.get(expectedPath), StandardCharsets.UTF_8);
-		List<String> actualLines = Files.readAllLines(Paths.get(actualPath), StandardCharsets.UTF_8);
+		CsvDataSummary expectedSummary = summarizeCsv(expectedPath, "Expected CSV should not be empty");
+		CsvDataSummary actualSummary = summarizeCsv(actualPath, "Actual CSV should not be empty");
 
-		Assert.assertFalse(expectedLines.isEmpty(), "Expected CSV should not be empty");
-		Assert.assertFalse(actualLines.isEmpty(), "Actual CSV should not be empty");
-		Assert.assertEquals(actualLines.get(0), expectedLines.get(0), "CSV header should match");
+		Assert.assertEquals(actualSummary.header, expectedSummary.header, "CSV header should match");
+		Assert.assertEquals(actualSummary.rows, expectedSummary.rows,
+				"CSV data rows should match regardless of row order");
+	}
 
-		Map<String, Long> expectedRows = expectedLines.stream().skip(1)
-				.collect(Collectors.groupingBy(line -> line, Collectors.counting()));
-		Map<String, Long> actualRows = actualLines.stream().skip(1)
-				.collect(Collectors.groupingBy(line -> line, Collectors.counting()));
+	private CsvDataSummary summarizeCsv(String csvPath, String emptyFileMessage) throws IOException {
+		try (Stream<String> lines = Files.lines(Paths.get(csvPath), StandardCharsets.UTF_8)) {
+			Iterator<String> iterator = lines.iterator();
+			Assert.assertTrue(iterator.hasNext(), emptyFileMessage);
+			String header = iterator.next();
+			Map<String, Long> rows = StreamSupport
+					.stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED), false)
+					.collect(Collectors.groupingBy(line -> line, Collectors.counting()));
+			return new CsvDataSummary(header, rows);
+		}
+	}
 
-		Assert.assertEquals(actualRows, expectedRows, "CSV data rows should match regardless of row order");
+	private static class CsvDataSummary {
+		private final String header;
+		private final Map<String, Long> rows;
+
+		private CsvDataSummary(String header, Map<String, Long> rows) {
+			this.header = header;
+			this.rows = rows;
+		}
 	}
 
 	private Amt2FlatFile createGenerator(String inputZipPath, String outputFilePath) {

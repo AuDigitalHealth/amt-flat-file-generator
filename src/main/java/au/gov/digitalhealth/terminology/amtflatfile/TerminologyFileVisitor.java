@@ -99,7 +99,7 @@ class TerminologyFileVisitor extends SimpleFileVisitor<Path> {
 
     private boolean verifyFile(Path file) throws IOException {
         if (Files.size(file) > MAX_FILE_SIZE) {
-            logger.warning("File " + file + " was detected for reading but skipped because it is over the maximum file size theshold "
+            logger.warning("File " + file + " was detected for reading but skipped because it is over the maximum file size threshold "
                     + MAX_FILE_SIZE);
             return false;
         }
