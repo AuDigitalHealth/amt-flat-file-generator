@@ -424,8 +424,8 @@ public class Amt2FlatFile extends AbstractMojo {
 
         String message = "Expected 1 " + parentLabel + " ancestor for " + currentLabel + " concept " + concept
                 + " but got " + parents;
-        testSuite.addTestCase("multiple parents", message,
-            "Multiple " + parentLabel + " ancestors (" + concept.getId() + ")", "ERROR");
+        testSuite.addTestCase("missing parent", message,
+            "Missing " + parentLabel + " ancestor (" + concept.getId() + ")", "ERROR");
         if (exitOnError) {
             throw new RuntimeException(message);
         }
